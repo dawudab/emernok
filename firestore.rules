@@ -1,0 +1,226 @@
+rules_version = '2';
+
+// Reading is public; every write requires a verified phone number.
+// Anti-spam limits must stay in sync with src/constants.js.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Anonymous sessions carry no phone_number claim, so this is what gates
+    // all writes. Checking for the key first avoids erroring on anon tokens.
+    function phoneUser() {
+      return request.auth != null
+        && 'phone_number' in request.auth.token
+        && request.auth.token.phone_number != '';
+    }
+
+    function counterPath(name) {
+      return /databases/$(database)/documents/$(name)/$(request.auth.uid);
+    }
+
+    // ---- reports -----------------------------------------------------------
+
+    function statsPath() { return counterPath('userStats'); }
+    function firstEverReport() { return !exists(statsPath()); }
+    function statsBefore() { return get(statsPath()).data; }
+
+    // Reports and the counter are committed together, so we can inspect the
+    // post-commit counter and require that it was actually bumped.
+    function statsAfter() { return getAfter(statsPath()).data; }
+
+    function cooldownElapsed() {
+      return firstEverReport()
+        || request.time > statsBefore().lastReportAt + duration.value(60, 's');
+    }
+
+    function dayWindowExpired() {
+      return firstEverReport()
+        || request.time > statsBefore().dayStartedAt + duration.value(1, 'd');
+    }
+
+    function underDailyCap() {
+      return dayWindowExpired() || statsBefore().dailyCount < 20;
+    }
+
+    // Without this a client could write unlimited reports and simply never
+    // update its own counter.
+    function counterBumped() {
+      return statsAfter().uid == request.auth.uid
+        && statsAfter().lastReportAt == request.time;
+    }
+
+    function votePath(reportId) {
+      return /databases/$(database)/documents/reports/$(reportId)/votes/$(request.auth.uid);
+    }
+
+    match /reports/{reportId} {
+      // Outage data is public so anyone can see what is down.
+      allow read: if true;
+
+      allow create: if phoneUser()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.type in ['power', 'water', 'fuel']
+        && request.resource.data.lat is number
+        && request.resource.data.lng is number
+        && request.resource.data.lat >= -90 && request.resource.data.lat <= 90
+        && request.resource.data.lng >= -180 && request.resource.data.lng <= 180
+        && request.resource.data.geohash is string
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.stillOutCount == 0
+        && request.resource.data.restoredCount == 0
+        && request.resource.data.keys().hasOnly(
+             ['uid', 'type', 'lat', 'lng', 'geohash', 'createdAt',
+              'stillOutCount', 'restoredCount']
+           )
+        && cooldownElapsed()
+        && underDailyCap()
+        && counterBumped();
+
+      // The only permitted update is a vote tally bumped by exactly one, and
+      // only when the matching vote document is created in the same commit by
+      // a user who has not voted on this report before.
+      allow update: if phoneUser()
+        && !exists(votePath(reportId))
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['stillOutCount', 'restoredCount'])
+        && (
+          getAfter(votePath(reportId)).data.value == 'still_out'
+            ? request.resource.data.stillOutCount == resource.data.stillOutCount + 1
+              && request.resource.data.restoredCount == resource.data.restoredCount
+            : getAfter(votePath(reportId)).data.value == 'restored'
+              && request.resource.data.restoredCount == resource.data.restoredCount + 1
+              && request.resource.data.stillOutCount == resource.data.stillOutCount
+        );
+
+      allow delete: if false;
+
+      match /votes/{voterId} {
+        allow read: if true;
+
+        allow create: if phoneUser()
+          && request.auth.uid == voterId
+          && request.resource.data.uid == voterId
+          && request.resource.data.value in ['still_out', 'restored']
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.keys().hasOnly(['uid', 'value', 'createdAt']);
+
+        // A vote is final, so the tally can never be double counted.
+        allow update, delete: if false;
+      }
+    }
+
+    match /userStats/{userId} {
+      function wellFormed() {
+        return request.resource.data.uid == userId
+          && request.resource.data.lastReportAt == request.time
+          && request.resource.data.dailyCount is int
+          && request.resource.data.keys().hasOnly(
+               ['uid', 'lastReportAt', 'dailyCount', 'dayStartedAt']
+             );
+      }
+
+      // Only the owner can see or touch their own counter.
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      allow create: if phoneUser()
+        && request.auth.uid == userId
+        && wellFormed()
+        && request.resource.data.dailyCount == 1
+        && request.resource.data.dayStartedAt == request.time;
+
+      allow update: if phoneUser()
+        && request.auth.uid == userId
+        && wellFormed()
+        // Either the 24h window rolled over (counter resets) or it ticks up by
+        // exactly one while keeping the same window start.
+        && (
+          request.time > resource.data.dayStartedAt + duration.value(1, 'd')
+            ? request.resource.data.dailyCount == 1
+              && request.resource.data.dayStartedAt == request.time
+            : request.resource.data.dailyCount == resource.data.dailyCount + 1
+              && request.resource.data.dayStartedAt == resource.data.dayStartedAt
+        );
+
+      allow delete: if false;
+    }
+
+    // ---- community feed ----------------------------------------------------
+
+    function chatPath() { return counterPath('chatStats'); }
+    function firstEverMessage() { return !exists(chatPath()); }
+    function chatBefore() { return get(chatPath()).data; }
+    function chatAfter() { return getAfter(chatPath()).data; }
+
+    function chatCooldownElapsed() {
+      return firstEverMessage()
+        || request.time > chatBefore().lastMessageAt + duration.value(10, 's');
+    }
+
+    function chatDayExpired() {
+      return firstEverMessage()
+        || request.time > chatBefore().dayStartedAt + duration.value(1, 'd');
+    }
+
+    function underChatCap() {
+      return chatDayExpired() || chatBefore().dailyCount < 100;
+    }
+
+    function chatCounterBumped() {
+      return chatAfter().uid == request.auth.uid
+        && chatAfter().lastMessageAt == request.time;
+    }
+
+    match /messages/{messageId} {
+      allow read: if true;
+
+      allow create: if phoneUser()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 300
+        && request.resource.data.lat is number
+        && request.resource.data.lng is number
+        && request.resource.data.geohash is string
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.keys().hasOnly(
+             ['uid', 'text', 'lat', 'lng', 'geohash', 'createdAt']
+           )
+        && chatCooldownElapsed()
+        && underChatCap()
+        && chatCounterBumped();
+
+      allow update, delete: if false;
+    }
+
+    match /chatStats/{userId} {
+      function wellFormedChat() {
+        return request.resource.data.uid == userId
+          && request.resource.data.lastMessageAt == request.time
+          && request.resource.data.dailyCount is int
+          && request.resource.data.keys().hasOnly(
+               ['uid', 'lastMessageAt', 'dailyCount', 'dayStartedAt']
+             );
+      }
+
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      allow create: if phoneUser()
+        && request.auth.uid == userId
+        && wellFormedChat()
+        && request.resource.data.dailyCount == 1
+        && request.resource.data.dayStartedAt == request.time;
+
+      allow update: if phoneUser()
+        && request.auth.uid == userId
+        && wellFormedChat()
+        && (
+          request.time > resource.data.dayStartedAt + duration.value(1, 'd')
+            ? request.resource.data.dailyCount == 1
+              && request.resource.data.dayStartedAt == request.time
+            : request.resource.data.dailyCount == resource.data.dailyCount + 1
+              && request.resource.data.dayStartedAt == resource.data.dayStartedAt
+        );
+
+      allow delete: if false;
+    }
+  }
+}

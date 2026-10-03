@@ -38,7 +38,6 @@ export default {
   'menu.official': 'دخول موظفي الخدمات',
   'menu.officialHint': 'الموظفون والصحفيون الموثوقون',
   'menu.admin': 'قائمة المراجعة',
-  'menu.adminHint': '{count} في الانتظار',
 
   'type.power': 'الإبلاغ عن الكهرباء (الضو)',
   'type.power.short': 'انقطاع الكهرباء (الضو)',
@@ -57,8 +56,6 @@ export default {
   'notice.tapMap': 'الموقع غير متاح. المس الخريطة لتحديد موضع {type}.',
   'notice.finishingSignIn': 'جارٍ إكمال تسجيل الدخول…',
   'notice.linkNeedsStep': 'يحتاج رابط الدخول إلى خطوة أخيرة. المس للإكمال.',
-  'notice.locationOff':
-    'الموقع غير مفعّل، لذا فضاء الحي غير متاح. ما زال بإمكانك الإبلاغ بلمس الخريطة.',
   'notice.liveUnavailable': 'التحديث المباشر غير متاح: {message}',
   'notice.voteThanks': 'شكرًا على التأكيد.',
 
@@ -204,8 +201,21 @@ export default {
   'admin.drafts': 'مستورد من المصادر الرسمية',
   'admin.noDrafts': 'لا شيء مستورد مؤخرًا.',
   'admin.source': 'المصدر: {source}',
-  'admin.publishedBy': 'نُشر كبلاغ رسمي.',
-  'admin.onlyAdmins': 'هذه المساحة مخصصة للمشرفين.',
+
+  'location.asking': 'جارٍ تحديد موقعك…',
+  'location.title': 'مشاركة موقعك',
+  'location.why':
+    'تتمركز الخريطة على موقعك وتعرض ما يجري في حيّك. لا يتم حفظ موقعك أو مشاركته أبدًا.',
+  'location.enable': 'تفعيل الموقع',
+  'location.retry': 'إعادة المحاولة',
+  'location.later': 'ليس الآن',
+  'location.blocked':
+    'الموقع محظور لهذا الموقع الإلكتروني. اسمح به في إعدادات المتصفح لهذه الصفحة ثم أعد المحاولة.',
+  'location.timeout': 'استغرق تحديد موقعك وقتًا طويلًا.',
+  'location.unavailable':
+    'تعذّر تحديد موقعك الآن. ما زال بإمكانك لمس الخريطة لتحديد مكان البلاغ.',
+  'location.unsupported':
+    'هذا المتصفح لا يستطيع تحديد الموقع. المس الخريطة لتحديد مكان البلاغ.',
 
   'error.cooldown': 'يرجى الانتظار {seconds} ثانية قبل إرسال بلاغ آخر.',
   'error.dailyLimit': 'بلغت الحد اليومي ({limit} بلاغًا). حاول لاحقًا.',

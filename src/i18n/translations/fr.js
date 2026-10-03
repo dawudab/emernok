@@ -36,7 +36,6 @@ export default {
   'menu.official': 'Accès agent de service public',
   'menu.officialHint': 'Agents et journalistes de confiance',
   'menu.admin': 'File de validation',
-  'menu.adminHint': '{count} en attente',
 
   'type.power': 'Signaler l’électricité',
   'type.power.short': 'Coupure d’électricité',
@@ -60,8 +59,6 @@ export default {
   'notice.finishingSignIn': 'Finalisation de votre connexion…',
   'notice.linkNeedsStep':
     'Votre lien de connexion nécessite une dernière étape. Touchez pour finir.',
-  'notice.locationOff':
-    'La localisation est désactivée, le fil du quartier est donc indisponible. Vous pouvez toujours signaler en touchant la carte.',
   'notice.liveUnavailable': 'Mises à jour en direct indisponibles : {message}',
   'notice.voteThanks': 'Merci pour votre confirmation.',
 
@@ -222,8 +219,21 @@ export default {
   'admin.drafts': 'Importé depuis les sources officielles',
   'admin.noDrafts': 'Rien d’importé récemment.',
   'admin.source': 'Source : {source}',
-  'admin.publishedBy': 'Publié comme avis officiel.',
-  'admin.onlyAdmins': 'Cet espace est réservé aux modérateurs.',
+
+  'location.asking': 'Recherche de votre position…',
+  'location.title': 'Partager votre position',
+  'location.why':
+    'La carte se centre sur vous et montre ce qui se passe dans votre quartier. Votre position n’est jamais enregistrée ni partagée.',
+  'location.enable': 'Activer la localisation',
+  'location.retry': 'Réessayer',
+  'location.later': 'Pas maintenant',
+  'location.blocked':
+    'La localisation est bloquée pour ce site. Autorisez-la dans les réglages de votre navigateur pour cette page, puis réessayez.',
+  'location.timeout': 'La recherche de votre position a pris trop de temps.',
+  'location.unavailable':
+    'Votre position n’a pas pu être déterminée. Vous pouvez toujours toucher la carte pour placer un signalement.',
+  'location.unsupported':
+    'Ce navigateur ne peut pas fournir de position. Touchez la carte pour placer un signalement.',
 
   'error.cooldown':
     'Veuillez attendre {seconds} s avant d’envoyer un autre signalement.',

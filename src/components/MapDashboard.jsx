@@ -20,6 +20,7 @@ import AppMenu from './AppMenu'
 import CommunityPanel from './CommunityPanel'
 import ConnectionIndicator from './ConnectionIndicator'
 import InfoPanel from './InfoPanel'
+import LocationGate from './LocationGate'
 import MapClickPicker from './MapClickPicker'
 import OfficialPanel from './OfficialPanel'
 import ProfilePanel from './ProfilePanel'
@@ -32,10 +33,16 @@ function MapDashboard() {
   const { reports, error: reportsError } = useReports()
   const { announcements } = useAnnouncements()
   const { isAdmin } = useOfficial(uid)
-  const { position, status: locationStatus, locate } = useGeolocation()
+  const {
+    position,
+    status: locationStatus,
+    permission: locationPermission,
+    locate,
+  } = useGeolocation()
   const t = useT()
 
   const [map, setMap] = useState(null)
+  const [locationDismissed, setLocationDismissed] = useState(false)
   const [pendingType, setPendingType] = useState(null)
   const [awaitingMapClick, setAwaitingMapClick] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -196,7 +203,7 @@ function MapDashboard() {
               onOpenOfficial={() => setPanel('official')}
               onOpenAdmin={() => setPanel('admin')}
               onRecenter={handleRecenter}
-              canRecenter={locationStatus !== 'denied'}
+              canRecenter={locationStatus !== 'unsupported'}
               isAdmin={isAdmin}
             />
           </div>
@@ -256,10 +263,13 @@ function MapDashboard() {
           </div>
         )}
 
-        {locationStatus === 'denied' && (
-          <div className="pointer-events-auto rounded-xl bg-slate-900/90 px-4 py-3 text-sm font-medium text-white shadow-lg">
-            {t('notice.locationOff')}
-          </div>
+        {!locationDismissed && (
+          <LocationGate
+            status={locationStatus}
+            permission={locationPermission}
+            onRetry={locate}
+            onDismiss={() => setLocationDismissed(true)}
+          />
         )}
 
         {reportsError && (

@@ -36,7 +36,6 @@ export default {
   'menu.official': 'Utility worker access',
   'menu.officialHint': 'Staff and trusted reporters',
   'menu.admin': 'Review queue',
-  'menu.adminHint': '{count} waiting',
 
   'type.power': 'Report Power',
   'type.power.short': 'Power outage',
@@ -55,8 +54,6 @@ export default {
   'notice.tapMap': 'Location unavailable. Tap the map to place your {type} pin.',
   'notice.finishingSignIn': 'Finishing your sign-in…',
   'notice.linkNeedsStep': 'Your sign-in link needs one more step. Tap to finish.',
-  'notice.locationOff':
-    'Location is off, so the community feed is unavailable. Reports can still be placed by tapping the map.',
   'notice.liveUnavailable': 'Live updates unavailable: {message}',
   'notice.voteThanks': 'Thanks for confirming.',
 
@@ -212,8 +209,21 @@ export default {
   'admin.drafts': 'Imported from official sources',
   'admin.noDrafts': 'Nothing imported recently.',
   'admin.source': 'Source: {source}',
-  'admin.publishedBy': 'Published as an official notice.',
-  'admin.onlyAdmins': 'This area is for moderators.',
+
+  'location.asking': 'Finding your location…',
+  'location.title': 'Share your location',
+  'location.why':
+    'The map centres on you and shows what is happening in your neighbourhood. Your position is never saved or shared.',
+  'location.enable': 'Enable location',
+  'location.retry': 'Try again',
+  'location.later': 'Not now',
+  'location.blocked':
+    'Location is blocked for this site. Allow it in your browser settings for this page, then try again.',
+  'location.timeout': 'Finding your location took too long.',
+  'location.unavailable':
+    'Your location could not be determined right now. You can still tap the map to place a report.',
+  'location.unsupported':
+    'This browser cannot provide a location. Tap the map to place a report instead.',
 
   'error.cooldown': 'Please wait {seconds}s before sending another report.',
   'error.dailyLimit':

@@ -29,8 +29,18 @@ const DAY_MS = 24 * 60 * 60 * 1000
 export const VOTE_STILL_OUT = 'still_out'
 export const VOTE_RESTORED = 'restored'
 
-export class RateLimitError extends Error {}
-export class AlreadyVotedError extends Error {}
+// Carry a translation key alongside the English message: these are the only
+// service errors shown to users verbatim.
+class TranslatableError extends Error {
+  constructor(message, key, vars) {
+    super(message)
+    this.key = key
+    this.vars = vars
+  }
+}
+
+export class RateLimitError extends TranslatableError {}
+export class AlreadyVotedError extends TranslatableError {}
 
 export function ttlCutoff() {
   return Timestamp.fromMillis(Date.now() - REPORT_TTL_HOURS * 60 * 60 * 1000)
@@ -73,6 +83,8 @@ export async function createReport({ uid, type, lat, lng }) {
         const wait = Math.ceil((REPORT_COOLDOWN_SECONDS * 1000 - sinceLast) / 1000)
         throw new RateLimitError(
           `Please wait ${wait}s before sending another report.`,
+          'error.cooldown',
+          { seconds: wait },
         )
       }
 
@@ -81,6 +93,8 @@ export async function createReport({ uid, type, lat, lng }) {
         if (stats.dailyCount >= DAILY_REPORT_LIMIT) {
           throw new RateLimitError(
             `Daily limit of ${DAILY_REPORT_LIMIT} reports reached. Try again later.`,
+            'error.dailyLimit',
+            { limit: DAILY_REPORT_LIMIT },
           )
         }
         dailyCount = stats.dailyCount + 1
@@ -126,7 +140,10 @@ export async function voteOnReport({ reportId, uid, value }) {
 
   await runTransaction(db, async (transaction) => {
     if ((await transaction.get(voteRef)).exists()) {
-      throw new AlreadyVotedError('You already responded to this report.')
+      throw new AlreadyVotedError(
+        'You already responded to this report.',
+        'error.alreadyVoted',
+      )
     }
     if (!(await transaction.get(reportRef)).exists()) {
       throw new Error('That report is no longer available.')

@@ -1,0 +1,4 @@
+{
+  "comment": "Public pages of utility providers and news outlets to poll. Only add sources whose terms permit automated reading: official websites and RSS feeds are fine, Facebook is not (its terms forbid scraping, and the pages sit behind a login wall). Each entry: id, org (shown on the published notice), url, and type ('rss' or 'html').",
+  "sources": []
+}

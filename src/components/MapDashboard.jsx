@@ -3,7 +3,9 @@ import { MapContainer, TileLayer } from 'react-leaflet'
 import { DEFAULT_ZOOM, NOUAKCHOTT_CENTER, REPORT_TYPES } from '../constants'
 import { useAuth } from '../context/useAuth'
 import { useGeolocation } from '../hooks/useGeolocation'
+import { useAnnouncements, useOfficial } from '../hooks/useOfficial'
 import { useReports } from '../hooks/useReports'
+import { useT } from '../i18n/useI18n'
 import {
   AlreadyVotedError,
   RateLimitError,
@@ -11,11 +13,15 @@ import {
   voteOnReport,
 } from '../services/reports'
 import { buildClusters } from '../utils/clustering'
+import AdminPanel from './AdminPanel'
+import AnnouncementBanner from './AnnouncementBanner'
+import AnnouncementLayer from './AnnouncementLayer'
 import AppMenu from './AppMenu'
 import CommunityPanel from './CommunityPanel'
 import ConnectionIndicator from './ConnectionIndicator'
 import InfoPanel from './InfoPanel'
 import MapClickPicker from './MapClickPicker'
+import OfficialPanel from './OfficialPanel'
 import ProfilePanel from './ProfilePanel'
 import RecenterMap from './RecenterMap'
 import ReportActionBar from './ReportActionBar'
@@ -24,7 +30,10 @@ import ReportLayers from './ReportLayers'
 function MapDashboard() {
   const { uid, status, canWrite, isAnonymous, emailLinkStatus } = useAuth()
   const { reports, error: reportsError } = useReports()
+  const { announcements } = useAnnouncements()
+  const { isAdmin } = useOfficial(uid)
   const { position, status: locationStatus, locate } = useGeolocation()
+  const t = useT()
 
   const [map, setMap] = useState(null)
   const [pendingType, setPendingType] = useState(null)
@@ -36,15 +45,19 @@ function MapDashboard() {
 
   const clusters = useMemo(() => buildClusters(reports), [reports])
 
+  // Service errors carry a translation key; anything else is a raw SDK message.
+  const describe = useCallback(
+    (error) => (error.key ? t(error.key, error.vars) : error.message),
+    [t],
+  )
+
   const requireSignIn = useCallback(() => {
     setNotice({
       tone: 'info',
-      text: isAnonymous
-        ? 'Sign in with your email or phone number to post.'
-        : 'Verify your email address to post.',
+      text: isAnonymous ? t('notice.signInToPost') : t('notice.verifyToPost'),
     })
     setPanel('profile')
-  }, [isAnonymous])
+  }, [isAnonymous, t])
 
   const submit = useCallback(
     async (type, { lat, lng }) => {
@@ -53,16 +66,15 @@ function MapDashboard() {
         await createReport({ uid, type, lat, lng })
         setNotice({
           tone: 'success',
-          text: `${REPORT_TYPES[type].shortLabel} reported. Thank you.`,
+          text: t('notice.reported', { type: t(REPORT_TYPES[type].shortKey) }),
         })
       } catch (writeError) {
-        // Rate-limit messages are already user-facing; other errors are not.
         setNotice({
           tone: 'error',
           text:
             writeError instanceof RateLimitError
-              ? writeError.message
-              : `Could not save the report: ${writeError.message}`,
+              ? describe(writeError)
+              : t('notice.saveFailed', { message: writeError.message }),
         })
       } finally {
         setPendingType(null)
@@ -70,7 +82,7 @@ function MapDashboard() {
         setBusy(false)
       }
     },
-    [uid],
+    [describe, t, uid],
   )
 
   const handleReport = useCallback(
@@ -93,12 +105,10 @@ function MapDashboard() {
       setAwaitingMapClick(true)
       setNotice({
         tone: 'info',
-        text: `Location unavailable. Tap the map to place your ${REPORT_TYPES[
-          type
-        ].shortLabel.toLowerCase()} pin.`,
+        text: t('notice.tapMap', { type: t(REPORT_TYPES[type].shortKey) }),
       })
     },
-    [canWrite, locate, position, requireSignIn, submit],
+    [canWrite, locate, position, requireSignIn, submit, t],
   )
 
   const handleMapPick = useCallback(
@@ -118,15 +128,15 @@ function MapDashboard() {
       try {
         await voteOnReport({ reportId, uid, value })
         setVotedIds((previous) => new Set(previous).add(reportId))
-        setNotice({ tone: 'success', text: 'Thanks for confirming.' })
+        setNotice({ tone: 'success', text: t('notice.voteThanks') })
       } catch (voteError) {
         if (voteError instanceof AlreadyVotedError) {
           setVotedIds((previous) => new Set(previous).add(reportId))
         }
-        setNotice({ tone: 'error', text: voteError.message })
+        setNotice({ tone: 'error', text: describe(voteError) })
       }
     },
-    [canWrite, requireSignIn, uid],
+    [canWrite, describe, requireSignIn, t, uid],
   )
 
   const handleRecenter = useCallback(async () => {
@@ -154,6 +164,7 @@ function MapDashboard() {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        <AnnouncementLayer announcements={announcements} />
         <ReportLayers
           clusters={clusters}
           onVote={handleVote}
@@ -167,10 +178,12 @@ function MapDashboard() {
       <header className="pointer-events-none absolute inset-x-0 top-0 z-[1000] space-y-2 p-4">
         <div className="pointer-events-auto flex items-center justify-between gap-3 rounded-xl bg-white/90 px-4 py-3 shadow-lg backdrop-blur">
           <div className="min-w-0">
-            <h1 className="text-lg font-bold text-slate-900">Emernok</h1>
+            <h1 className="text-lg font-bold text-slate-900">{t('app.name')}</h1>
             <p className="truncate text-sm text-slate-600">
-              {clusters.filter((cluster) => cluster.verified).length} verified ·{' '}
-              {clusters.length} active
+              {t('app.counts', {
+                verified: clusters.filter((cluster) => cluster.verified).length,
+                total: clusters.length,
+              })}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -180,15 +193,23 @@ function MapDashboard() {
               onOpenProfile={() => setPanel('profile')}
               onOpenLegend={() => setPanel('legend')}
               onOpenAbout={() => setPanel('about')}
+              onOpenOfficial={() => setPanel('official')}
+              onOpenAdmin={() => setPanel('admin')}
               onRecenter={handleRecenter}
               canRecenter={locationStatus !== 'denied'}
+              isAdmin={isAdmin}
             />
           </div>
         </div>
 
+        <AnnouncementBanner
+          announcements={announcements}
+          onFocus={(item) => map?.flyTo([item.lat, item.lng], DEFAULT_ZOOM)}
+        />
+
         {emailLinkStatus === 'completing' && (
           <div className="pointer-events-auto rounded-xl bg-slate-900/90 px-4 py-3 text-sm font-medium text-white shadow-lg">
-            Finishing your sign-in…
+            {t('notice.finishingSignIn')}
           </div>
         )}
 
@@ -196,9 +217,9 @@ function MapDashboard() {
           <button
             type="button"
             onClick={() => setPanel('profile')}
-            className="pointer-events-auto w-full rounded-xl bg-amber-500 px-4 py-3 text-left text-sm font-medium text-amber-950 shadow-lg"
+            className="pointer-events-auto w-full rounded-xl bg-amber-500 px-4 py-3 text-start text-sm font-medium text-amber-950 shadow-lg"
           >
-            Your sign-in link needs one more step. Tap to finish.
+            {t('notice.linkNeedsStep')}
           </button>
         )}
 
@@ -220,13 +241,13 @@ function MapDashboard() {
                 onClick={cancel}
                 className="rounded-lg bg-white/20 px-3 py-1 font-semibold"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => setNotice(null)}
-                aria-label="Dismiss"
+                aria-label={t('common.dismiss')}
                 className="rounded-lg bg-white/20 px-2 py-1"
               >
                 ✕
@@ -237,14 +258,13 @@ function MapDashboard() {
 
         {locationStatus === 'denied' && (
           <div className="pointer-events-auto rounded-xl bg-slate-900/90 px-4 py-3 text-sm font-medium text-white shadow-lg">
-            Location is off, so the community feed is unavailable. Reports can
-            still be placed by tapping the map.
+            {t('notice.locationOff')}
           </div>
         )}
 
         {reportsError && (
           <div className="pointer-events-auto rounded-xl bg-red-600 px-4 py-3 text-sm font-medium text-white shadow-lg">
-            Live updates unavailable: {reportsError.message}
+            {t('notice.liveUnavailable', { message: reportsError.message })}
           </div>
         )}
       </header>
@@ -255,13 +275,13 @@ function MapDashboard() {
         disabled={busy || status !== 'authenticated'}
         locked={!canWrite}
         lockedReason={
-          isAnonymous
-            ? 'Sign in with email or phone to report an outage'
-            : 'Verify your email address to report an outage'
+          isAnonymous ? t('bar.lockedGuest') : t('bar.lockedUnverified')
         }
       />
 
       {panel === 'profile' && <ProfilePanel onClose={() => setPanel(null)} />}
+      {panel === 'official' && <OfficialPanel onClose={() => setPanel(null)} />}
+      {panel === 'admin' && <AdminPanel onClose={() => setPanel(null)} />}
       {panel === 'community' && (
         <CommunityPanel
           position={position}

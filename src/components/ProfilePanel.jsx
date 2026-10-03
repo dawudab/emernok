@@ -1,62 +1,43 @@
 import { useState } from 'react'
 import { DAILY_REPORT_LIMIT, REPORT_TYPES } from '../constants'
 import { useAuth } from '../context/useAuth'
+import { useOfficial } from '../hooks/useOfficial'
 import { useMyReports } from '../hooks/useReports'
-import { refreshIdentity, resendVerification, signOut } from '../services/auth'
+import { useT } from '../i18n/useI18n'
+import { refreshIdentity, signOut } from '../services/auth'
 import SignInPanel from './SignInPanel'
 
-function formatTime(createdAt) {
-  if (!createdAt?.toDate) return 'Sending…'
-  return createdAt.toDate().toLocaleString()
-}
-
 function VerifyEmailNotice({ email }) {
+  const t = useT()
   const [state, setState] = useState(null)
   const [busy, setBusy] = useState(false)
-
-  const run = async (action, done) => {
-    setBusy(true)
-    try {
-      await action()
-      setState(done)
-    } catch (error) {
-      setState(error.message)
-    } finally {
-      setBusy(false)
-    }
-  }
 
   return (
     <div className="rounded-xl bg-amber-50 p-4">
       <p className="text-sm font-semibold text-amber-900">
-        Verify {email} to start reporting
+        {t('profile.verifyTitle', { email })}
       </p>
-      <p className="mt-1 text-xs text-amber-800">
-        Reporting, posting and voting stay locked until the address is
-        confirmed. This is what stops one person inventing many accounts.
-      </p>
-      <div className="mt-3 flex gap-2">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() =>
-            run(resendVerification, 'Verification email sent again.')
+      <p className="mt-1 text-xs text-amber-800">{t('profile.verifyBody')}</p>
+      <button
+        type="button"
+        disabled={busy}
+        // The link is opened in another tab, so this tab has to refresh the
+        // token before it can see the new state.
+        onClick={async () => {
+          setBusy(true)
+          try {
+            await refreshIdentity()
+            setState(t('profile.verifyStill'))
+          } catch (error) {
+            setState(error.message)
+          } finally {
+            setBusy(false)
           }
-          className="min-h-11 flex-1 rounded-xl bg-amber-600 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          Resend email
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          // The link is clicked in another tab, so this tab must refresh the
-          // token before it can see the new state.
-          onClick={() => run(refreshIdentity, 'Checked — still not verified.')}
-          className="min-h-11 flex-1 rounded-xl border border-amber-600 text-sm font-semibold text-amber-900 disabled:opacity-50"
-        >
-          I have verified
-        </button>
-      </div>
+        }}
+        className="mt-3 min-h-11 w-full rounded-xl bg-amber-600 text-sm font-semibold text-white disabled:opacity-50"
+      >
+        {t('profile.verifyCheck')}
+      </button>
       {state && <p className="mt-2 text-xs text-amber-900">{state}</p>}
     </div>
   )
@@ -65,13 +46,19 @@ function VerifyEmailNotice({ email }) {
 function ProfilePanel({ onClose }) {
   const { uid, isAnonymous, email, emailVerified, canWrite, identityLabel } =
     useAuth()
+  const { role, isOfficial } = useOfficial(uid)
   const { reports, error } = useMyReports(uid)
+  const t = useT()
+  const [copied, setCopied] = useState(false)
+
+  const formatTime = (createdAt) =>
+    createdAt?.toDate ? createdAt.toDate().toLocaleString() : t('popup.sending')
 
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Your profile"
+      aria-label={t('profile.title')}
       className="fixed inset-0 z-[1100] flex items-end justify-center bg-black/50"
       onClick={onClose}
     >
@@ -82,25 +69,36 @@ function ProfilePanel({ onClose }) {
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 p-5">
           <div className="min-w-0">
             <h2 className="truncate text-base font-bold text-slate-900">
-              {isAnonymous ? 'Guest account' : identityLabel}
+              {isAnonymous ? t('profile.guest') : identityLabel}
             </h2>
             <p className="mt-0.5 text-xs text-slate-500">
               {isAnonymous
-                ? 'Anonymous session on this device only'
-                : canWrite
-                  ? 'Verified — you can report, post and vote'
-                  : 'Signed in, not yet verified'}
+                ? t('profile.anonymous')
+                : isOfficial
+                  ? t('profile.official', { org: role.org })
+                  : canWrite
+                    ? t('profile.fullAccess')
+                    : t('profile.notVerified')}
             </p>
             {uid && (
-              <p className="mt-1 font-mono text-[11px] text-slate-400">
-                {uid.slice(0, 12)}…
-              </p>
+              // Needed verbatim to be granted moderator access, so it has to be
+              // copyable rather than truncated for looks.
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard?.writeText(uid)
+                  setCopied(true)
+                }}
+                className="mt-1 font-mono text-[11px] text-slate-400 underline"
+              >
+                {copied ? t('profile.copied') : t('profile.copyId')}
+              </button>
             )}
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close profile"
+            aria-label={t('common.close')}
             className="min-h-11 min-w-11 shrink-0 rounded-xl bg-slate-100 font-semibold text-slate-700"
           >
             ✕
@@ -115,21 +113,21 @@ function ProfilePanel({ onClose }) {
           )}
 
           <h3 className="mt-6 text-sm font-bold text-slate-900">
-            Your latest reports
+            {t('profile.latest')}
           </h3>
           <p className="mt-0.5 text-xs text-slate-500">
-            Up to {DAILY_REPORT_LIMIT} reports per day.
+            {t('profile.dailyLimit', { limit: DAILY_REPORT_LIMIT })}
           </p>
 
           {error && (
             <p role="alert" className="mt-3 text-sm font-medium text-red-600">
-              Could not load your reports: {error.message}
+              {t('profile.loadFailed', { message: error.message })}
             </p>
           )}
 
           {!error && reports.length === 0 && (
             <p className="mt-3 text-sm text-slate-500">
-              You have not sent any reports yet.
+              {t('profile.noReports')}
             </p>
           )}
 
@@ -144,7 +142,7 @@ function ProfilePanel({ onClose }) {
                     style={{ background: type.color }}
                   />
                   <span className="flex-1 text-sm font-medium text-slate-800">
-                    {type.shortLabel}
+                    {t(type.shortKey)}
                   </span>
                   <span className="text-xs text-slate-500">
                     {formatTime(report.createdAt)}
@@ -160,7 +158,7 @@ function ProfilePanel({ onClose }) {
               onClick={signOut}
               className="mt-6 min-h-12 w-full rounded-xl border border-slate-300 font-semibold text-slate-700"
             >
-              Sign out
+              {t('common.signOut')}
             </button>
           )}
         </div>

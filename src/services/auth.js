@@ -6,11 +6,8 @@ import {
   linkWithCredential,
   linkWithPhoneNumber,
   reload,
-  sendEmailVerification,
-  sendPasswordResetEmail,
   sendSignInLinkToEmail,
   signInWithCredential,
-  signInWithEmailAndPassword,
   signInWithPhoneNumber,
   signOut as firebaseSignOut,
 } from 'firebase/auth'
@@ -110,38 +107,6 @@ export async function completeEmailLink(email, url = window.location.href) {
   } finally {
     clearPendingEmail()
   }
-}
-
-// ---- email + password ------------------------------------------------------
-
-export async function createEmailAccount(email, password) {
-  const credential = EmailAuthProvider.credential(email.trim(), password)
-  const current = auth.currentUser
-
-  if (current?.isAnonymous) {
-    const result = await linkWithCredential(current, credential)
-    // Writes stay blocked until this is confirmed, so send it immediately.
-    await sendEmailVerification(result.user)
-    return result
-  }
-
-  const result = await signInWithCredential(auth, credential)
-  await sendEmailVerification(result.user)
-  return result
-}
-
-export function signInWithEmail(email, password) {
-  return signInWithEmailAndPassword(auth, email.trim(), password)
-}
-
-export function resendVerification() {
-  const current = auth.currentUser
-  if (!current) throw new Error('You are not signed in.')
-  return sendEmailVerification(current)
-}
-
-export function resetPassword(email) {
-  return sendPasswordResetEmail(auth, email.trim())
 }
 
 /**

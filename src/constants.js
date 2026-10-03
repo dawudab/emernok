@@ -30,27 +30,28 @@ export const STATUS_COLORS = {
   verified: '#ef4444',
 }
 
+// Labels are translation keys rather than text: see src/i18n/translations.
 export const REPORT_TYPES = {
   power: {
     id: 'power',
-    label: 'Report Power',
-    shortLabel: 'Power outage',
+    labelKey: 'type.power',
+    shortKey: 'type.power.short',
     icon: '⚡',
     color: '#ef4444',
     button: 'bg-red-500 active:bg-red-600',
   },
   water: {
     id: 'water',
-    label: 'Report Water',
-    shortLabel: 'Water issue',
+    labelKey: 'type.water',
+    shortKey: 'type.water.short',
     icon: '💧',
     color: '#2563eb',
     button: 'bg-blue-600 active:bg-blue-700',
   },
   fuel: {
     id: 'fuel',
-    label: 'Report Fuel',
-    shortLabel: 'Gas / fuel shortage',
+    labelKey: 'type.fuel',
+    shortKey: 'type.fuel.short',
     icon: '⛽',
     color: '#eab308',
     button: 'bg-yellow-500 active:bg-yellow-600',
@@ -58,3 +59,81 @@ export const REPORT_TYPES = {
 }
 
 export const REPORT_TYPE_LIST = Object.values(REPORT_TYPES)
+
+// Nouakchott's moughataas. Centres are approximate and chosen to anchor an
+// official notice to a neighbourhood, not to draw administrative boundaries —
+// worth replacing with surveyed coordinates before launch.
+// Aliases are what the source importer matches against: official notices are
+// written in Arabic or French, and transliterations vary widely.
+export const NEIGHBOURHOODS = [
+  {
+    id: 'tevragh-zeina',
+    name: 'Tevragh Zeina',
+    lat: 18.095,
+    lng: -15.98,
+    aliases: ['تفرغ زينة', 'Tevragh-Zeina', 'Tevragh Zeïna', 'Tevragh'],
+  },
+  {
+    id: 'ksar',
+    name: 'Ksar',
+    lat: 18.088,
+    lng: -15.96,
+    aliases: ['لكصر', 'الكصر', 'Le Ksar'],
+  },
+  {
+    id: 'sebkha',
+    name: 'Sebkha',
+    lat: 18.073,
+    lng: -15.98,
+    aliases: ['السبخة', 'Sebkha'],
+  },
+  {
+    id: 'el-mina',
+    name: 'El Mina',
+    lat: 18.055,
+    lng: -15.965,
+    aliases: ['لمينة', 'الميناء', 'Elmina', 'El-Mina'],
+  },
+  {
+    id: 'arafat',
+    name: 'Arafat',
+    lat: 18.05,
+    lng: -15.94,
+    aliases: ['عرفات'],
+  },
+  {
+    id: 'riyad',
+    name: 'Riyad',
+    lat: 17.99,
+    lng: -15.93,
+    aliases: ['الرياض', 'Riad'],
+  },
+  {
+    id: 'dar-naim',
+    name: 'Dar Naim',
+    lat: 18.12,
+    lng: -15.93,
+    aliases: ['دار النعيم', 'Dar-Naim', 'Dar Naïm'],
+  },
+  {
+    id: 'teyarett',
+    name: 'Teyarett',
+    lat: 18.13,
+    lng: -15.97,
+    aliases: ['تيارت', 'Teyaret'],
+  },
+  {
+    id: 'toujounine',
+    name: 'Toujounine',
+    lat: 18.09,
+    lng: -15.89,
+    aliases: ['توجنين', 'Toujounine'],
+  },
+]
+
+// Official notices cover a whole neighbourhood rather than a single address.
+export const ANNOUNCEMENT_RADIUS_M = 2000
+export const ANNOUNCEMENT_MAX_HOURS = 48
+export const ANNOUNCEMENT_DEFAULT_HOURS = 4
+export const MAX_ANNOUNCEMENT_LENGTH = 500
+export const OFFICIAL_COLOR = '#7c3aed'

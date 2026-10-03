@@ -19,6 +19,21 @@ body {
   background: #e5e7eb;
 }
 
+/* Official notices use a square badge so they never read as a crowd report,
+   even before the colour registers. */
+.official-pin__badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 17px;
+  line-height: 1;
+  border-radius: 10px;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.45);
+}
+
 /* Report pins: fill = validation status, emoji = utility type.
    See STATUS_COLORS and REPORT_TYPES in src/constants.js */
 .report-pin__dot {

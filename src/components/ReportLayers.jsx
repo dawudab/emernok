@@ -7,6 +7,7 @@ import {
   VERIFY_MIN_USERS,
   VERIFY_RADIUS_M,
 } from '../constants'
+import { useT } from '../i18n/useI18n'
 import { VOTE_RESTORED, VOTE_STILL_OUT } from '../services/reports'
 
 // Leaflet's default marker relies on bundled image assets, so we draw our own
@@ -21,13 +22,13 @@ function buildIcon(icon, color, verified) {
   })
 }
 
-function formatTime(createdAt) {
-  // serverTimestamp() is null locally until the write round-trips.
-  if (!createdAt?.toDate) return 'Sending…'
-  return createdAt.toDate().toLocaleString()
-}
-
 function ReportLayers({ clusters, onVote, canVote, votedIds }) {
+  const t = useT()
+
+  // serverTimestamp() is null locally until the write round-trips.
+  const formatTime = (createdAt) =>
+    createdAt?.toDate ? createdAt.toDate().toLocaleString() : t('popup.sending')
+
   const icons = useMemo(() => {
     const entries = []
     for (const type of Object.values(REPORT_TYPES)) {
@@ -72,26 +73,32 @@ function ReportLayers({ clusters, onVote, canVote, votedIds }) {
         >
           <Popup>
             <span className="block font-semibold">
-              {type.icon} {type.shortLabel}
+              {type.icon} {t(type.shortKey)}
             </span>
             <span
               className="mt-1 block text-xs font-semibold"
               style={{ color }}
             >
               {cluster.verified
-                ? 'Verified Community Outage'
-                : `Unconfirmed · ${cluster.reporterCount}/${VERIFY_MIN_USERS} neighbours`}
+                ? t('popup.verified')
+                : t('popup.unconfirmed', {
+                    count: cluster.reporterCount,
+                    total: VERIFY_MIN_USERS,
+                  })}
             </span>
             <span className="mt-1 block text-xs text-slate-500">
-              Latest: {formatTime(cluster.latest.createdAt)}
+              {t('popup.latest', { time: formatTime(cluster.latest.createdAt) })}
             </span>
             <span className="mt-1 block text-xs text-slate-500">
-              {cluster.stillOutCount} still out · {cluster.restoredCount} back on
+              {t('popup.tally', {
+                out: cluster.stillOutCount,
+                back: cluster.restoredCount,
+              })}
             </span>
 
             {alreadyVoted ? (
               <span className="mt-2 block text-xs font-medium text-slate-500">
-                Thanks — your response was recorded.
+                {t('popup.voted')}
               </span>
             ) : (
               <span className="mt-2 flex gap-2">
@@ -101,7 +108,7 @@ function ReportLayers({ clusters, onVote, canVote, votedIds }) {
                   onClick={() => onVote(cluster.latest.id, VOTE_STILL_OUT)}
                   className="min-h-9 flex-1 rounded-lg bg-red-500 px-2 text-xs font-semibold text-white disabled:opacity-50"
                 >
-                  Still Out
+                  {t('popup.stillOut')}
                 </button>
                 <button
                   type="button"
@@ -109,13 +116,13 @@ function ReportLayers({ clusters, onVote, canVote, votedIds }) {
                   onClick={() => onVote(cluster.latest.id, VOTE_RESTORED)}
                   className="min-h-9 flex-1 rounded-lg bg-emerald-600 px-2 text-xs font-semibold text-white disabled:opacity-50"
                 >
-                  It&apos;s Back
+                  {t('popup.back')}
                 </button>
               </span>
             )}
             {!canVote && (
               <span className="mt-1 block text-[11px] text-slate-500">
-                Sign in with email or phone to respond.
+                {t('popup.signInToVote')}
               </span>
             )}
           </Popup>

@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { confirmPhoneCode, createRecaptcha, startPhoneSignIn } from '../services/auth'
+import { useT } from '../i18n/useI18n'
+import {
+  confirmPhoneCode,
+  createRecaptcha,
+  startPhoneSignIn,
+} from '../services/auth'
 
 const DEFAULT_PREFIX = '+222'
 
 function PhoneSignIn({ onDone }) {
+  const t = useT()
   const [phone, setPhone] = useState(DEFAULT_PREFIX)
   const [code, setCode] = useState('')
   const [confirmation, setConfirmation] = useState(null)
@@ -57,13 +63,14 @@ function PhoneSignIn({ onDone }) {
       {confirmation ? (
         <form onSubmit={verify} className="space-y-3">
           <label className="block text-sm font-medium text-slate-700">
-            Enter the 6-digit code sent to {phone}
+            {t('phone.codeLabel', { phone })}
             <input
               value={code}
               onChange={(event) => setCode(event.target.value)}
               inputMode="numeric"
               autoComplete="one-time-code"
               placeholder="123456"
+              dir="ltr"
               className="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 text-base tracking-widest"
             />
           </label>
@@ -72,27 +79,28 @@ function PhoneSignIn({ onDone }) {
             disabled={busy || code.trim().length < 6}
             className="min-h-12 w-full rounded-xl bg-slate-900 font-semibold text-white disabled:opacity-50"
           >
-            {busy ? 'Verifying…' : 'Verify'}
+            {busy ? t('phone.verifying') : t('phone.verify')}
           </button>
           <button
             type="button"
             onClick={() => setConfirmation(null)}
             className="w-full text-sm font-medium text-slate-500"
           >
-            Use a different number
+            {t('phone.change')}
           </button>
         </form>
       ) : (
         <form onSubmit={sendCode} className="space-y-3">
           <label className="block text-sm font-medium text-slate-700">
-            Phone number
+            {t('phone.label')}
             <input
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
               type="tel"
               inputMode="tel"
               autoComplete="tel"
-              placeholder="+222 12 34 56 78"
+              placeholder={t('phone.placeholder')}
+              dir="ltr"
               className="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 text-base"
             />
           </label>
@@ -101,11 +109,9 @@ function PhoneSignIn({ onDone }) {
             disabled={busy || phone.trim().length < 8}
             className="min-h-12 w-full rounded-xl bg-slate-900 font-semibold text-white disabled:opacity-50"
           >
-            {busy ? 'Sending…' : 'Send code'}
+            {busy ? t('phone.sending') : t('phone.send')}
           </button>
-          <p className="text-xs text-slate-500">
-            Your existing reports stay with you when you add a phone number.
-          </p>
+          <p className="text-xs text-slate-500">{t('phone.keep')}</p>
         </form>
       )}
 

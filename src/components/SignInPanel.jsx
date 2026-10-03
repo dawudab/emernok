@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../context/useAuth'
+import { useT } from '../i18n/useI18n'
 import EmailSignIn from './EmailSignIn'
 import PhoneSignIn from './PhoneSignIn'
 
@@ -7,6 +8,7 @@ import PhoneSignIn from './PhoneSignIn'
 // and least reliable part of signing in here.
 function SignInPanel({ onDone }) {
   const { emailLinkStatus } = useAuth()
+  const t = useT()
   const [method, setMethod] = useState('email')
 
   // A half-finished link sign-in has to be resolved before anything else.
@@ -15,18 +17,14 @@ function SignInPanel({ onDone }) {
 
   return (
     <div className="rounded-xl bg-slate-50 p-4">
-      <h3 className="text-sm font-bold text-slate-900">
-        Sign in to report, post and vote
-      </h3>
-      <p className="mt-0.5 text-xs text-slate-500">
-        Your existing reports stay with you when you sign in from this device.
-      </p>
+      <h3 className="text-sm font-bold text-slate-900">{t('signIn.title')}</h3>
+      <p className="mt-0.5 text-xs text-slate-500">{t('signIn.subtitle')}</p>
 
       {!forced && (
         <div className="mt-3 flex gap-2">
           {[
-            { id: 'email', label: 'Email' },
-            { id: 'phone', label: 'Phone' },
+            { id: 'email', label: t('signIn.email') },
+            { id: 'phone', label: t('signIn.phone') },
           ].map((option) => (
             <button
               key={option.id}

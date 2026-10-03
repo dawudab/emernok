@@ -24,6 +24,148 @@ service cloud.firestore {
       return /databases/$(database)/documents/$(name)/$(request.auth.uid);
     }
 
+    // ---- privileged roles --------------------------------------------------
+
+    // Moderators are a collection no client can write to: seed it from the
+    // Firebase console. Making it data rather than a hardcoded uid lets the
+    // team grow without a rules deploy.
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function rolePath() {
+      return /databases/$(database)/documents/roles/$(request.auth.uid);
+    }
+
+    function myRole() { return get(rolePath()).data; }
+
+    // Approved by a moderator *and* holding a verified identity: losing the
+    // second must not leave the first standing.
+    function isOfficial() {
+      return verifiedUser()
+        && exists(rolePath())
+        && myRole().approved == true;
+    }
+
+    match /admins/{userId} {
+      // You may check whether you are a moderator, nothing more.
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    match /roles/{userId} {
+      allow read: if request.auth != null
+        && (request.auth.uid == userId || isAdmin());
+
+      // Only a moderator grants a role, and only ever stamped with their own
+      // uid, so every grant is attributable.
+      allow create, update: if isAdmin()
+        && request.resource.data.uid == userId
+        && request.resource.data.role == 'official'
+        && request.resource.data.org is string
+        && request.resource.data.org.size() > 0
+        && request.resource.data.org.size() <= 100
+        && request.resource.data.approved is bool
+        && request.resource.data.approvedBy == request.auth.uid
+        && request.resource.data.keys().hasOnly(
+             ['uid', 'role', 'org', 'name', 'approved', 'approvedBy', 'approvedAt']
+           );
+
+      allow delete: if isAdmin();
+    }
+
+    match /roleRequests/{userId} {
+      allow read: if request.auth != null
+        && (request.auth.uid == userId || isAdmin());
+
+      // An application is self-service, but it can only ever be created as
+      // 'pending': the applicant cannot approve themselves.
+      allow create: if verifiedUser()
+        && request.auth.uid == userId
+        && request.resource.data.uid == userId
+        && request.resource.data.status == 'pending'
+        && request.resource.data.org is string
+        && request.resource.data.org.size() > 0
+        && request.resource.data.org.size() <= 100
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 100
+        && request.resource.data.title is string
+        && request.resource.data.title.size() <= 100
+        && request.resource.data.proof is string
+        && request.resource.data.proof.size() > 0
+        && request.resource.data.proof.size() <= 500
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.keys().hasOnly(
+             ['uid', 'org', 'name', 'title', 'proof', 'status', 'createdAt']
+           );
+
+      allow update: if isAdmin()
+        && request.resource.data.status in ['approved', 'rejected']
+        && request.resource.data.reviewedBy == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'reviewedBy', 'reviewedAt']);
+
+      allow delete: if isAdmin();
+    }
+
+    // ---- official notices --------------------------------------------------
+
+    match /announcements/{announcementId} {
+      // The whole point is visibility, so reads stay public.
+      allow read: if true;
+
+      allow create: if request.resource.data.uid == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 500
+        && request.resource.data.area is string
+        && request.resource.data.areaId is string
+        && request.resource.data.lat is number
+        && request.resource.data.lng is number
+        && request.resource.data.lat >= -90 && request.resource.data.lat <= 90
+        && request.resource.data.lng >= -180 && request.resource.data.lng <= 180
+        && request.resource.data.geohash is string
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time
+        // One hour of slack over the 48h cap absorbs client clock skew.
+        && request.resource.data.expiresAt < request.time + duration.value(49, 'h')
+        && request.resource.data.keys().hasOnly(
+             ['uid', 'org', 'area', 'areaId', 'lat', 'lng', 'geohash', 'text',
+              'createdAt', 'expiresAt']
+           )
+        && (
+          // An approved worker may only publish under their own organisation,
+          // so an approval for one employer cannot be used to impersonate
+          // another. Moderators publish reviewed imports under any source.
+          (isOfficial() && request.resource.data.org == myRole().org)
+          || (isAdmin() && request.resource.data.org is string)
+        );
+
+      // Notices are immutable; a wrong one is withdrawn, not quietly edited.
+      allow update: if false;
+      allow delete: if isAdmin()
+        || (isOfficial() && resource.data.uid == request.auth.uid);
+    }
+
+    // ---- imported source drafts --------------------------------------------
+
+    // Written only by the scheduled importer through the Admin SDK, which
+    // bypasses these rules. Nothing a browser holds can forge one.
+    match /sourceDrafts/{draftId} {
+      allow read: if isAdmin();
+      allow create: if false;
+
+      allow update: if isAdmin()
+        && request.resource.data.status in ['published', 'discarded']
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'reviewedBy', 'reviewedAt']);
+
+      allow delete: if isAdmin();
+    }
+
     // ---- reports -----------------------------------------------------------
 
     function statsPath() { return counterPath('userStats'); }

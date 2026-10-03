@@ -1,0 +1,34 @@
+name: Poll official sources
+
+# Scheduled runs are best-effort on GitHub's shared runners and can be delayed
+# or skipped under load, so this is a convenience importer, not a guarantee.
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: poll-sources
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Fetch sources and queue drafts
+        env:
+          # A service account key with Firestore write access, stored as a
+          # repository secret. It never reaches a browser: drafts are only
+          # written here, and clients can only read them as moderators.
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: npm run poll:sources

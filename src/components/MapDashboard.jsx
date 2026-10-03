@@ -1,6 +1,11 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { MapContainer } from 'react-leaflet'
-import { DEFAULT_ZOOM, NOUAKCHOTT_CENTER, REPORT_TYPES } from '../constants'
+import {
+  DEFAULT_ZOOM,
+  GAS_STATIONS,
+  NOUAKCHOTT_CENTER,
+  REPORT_TYPES,
+} from '../constants'
 import { useAuth } from '../context/useAuth'
 import { useGeolocation } from '../hooks/useGeolocation'
 import { useAnnouncements, useOfficial } from '../hooks/useOfficial'
@@ -10,10 +15,16 @@ import {
   AlreadyVotedError,
   RateLimitError,
   createReport,
+  deleteReport,
+  purgeExpiredUnverifiedReports,
   voteOnReport,
 } from '../services/reports'
-import { reportStationGasStatus } from '../services/stations'
-import { buildClusters } from '../utils/clustering'
+import {
+  reportStationGasStatus,
+  subscribeToStationStatuses,
+} from '../services/stations'
+import { buildClustersWithExpiry } from '../utils/clustering'
+import { computeRegionStats } from '../utils/regionStats'
 import AdminPanel from './AdminPanel'
 import AnnouncementBanner from './AnnouncementBanner'
 import AnnouncementLayer from './AnnouncementLayer'
@@ -27,6 +38,7 @@ import MapTiles from './MapTiles'
 import OfficialPanel from './OfficialPanel'
 import ProfilePanel from './ProfilePanel'
 import RecenterMap from './RecenterMap'
+import RegionZonesLayer from './RegionZonesLayer'
 import ReportActionBar from './ReportActionBar'
 import ReportLayers from './ReportLayers'
 import { CloseIcon } from './icons'
@@ -38,6 +50,11 @@ const NOTICE_TONES = {
   info: 'border-white/40 bg-white/50 text-zinc-900 dark:border-white/10 dark:bg-black/40 dark:text-zinc-100',
 }
 
+// Top fuel stations based on review ratings (sorted highest rated first)
+const TOP_FUEL_STATIONS = [...GAS_STATIONS]
+  .filter((station) => (station.rating ?? 0) >= 4.5)
+  .sort((a, b) => b.rating - a.rating || b.reviews - a.reviews)
+
 function MapDashboard() {
   const { uid, status, canWrite, isAnonymous, emailLinkStatus } = useAuth()
   const { reports, error: reportsError } = useReports()
@@ -47,19 +64,57 @@ function MapDashboard() {
   const t = useT()
 
   const [map, setMap] = useState(null)
-  const [pendingType, setPendingType] = useState(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState(null)
   const [panel, setPanel] = useState(null)
   const [votedIds, setVotedIds] = useState(() => new Set())
 
-  const clusters = useMemo(
-    () => buildClusters(reports.filter((r) => r.type === 'power')),
+  // Nouakchott Regions are ON by default; Top Fuel Stations are OFF by default;
+  // Verification Filter lives inside Settings only.
+  const [showRegions, setShowRegions] = useState(true)
+  const [showStations, setShowStations] = useState(false)
+  const [verificationFilter, setVerificationFilter] = useState('all')
+
+  const [stationStatuses, setStationStatuses] = useState({})
+
+  useEffect(() => {
+    return subscribeToStationStatuses((next) => setStationStatuses(next))
+  }, [])
+
+  // Cluster power reports and automatically collect any unverified reports that
+  // have been up for longer than 24 hours so they delete automatically.
+  const { clusters: allPowerClusters, expiredUnverifiedReports } = useMemo(
+    () => buildClustersWithExpiry(reports.filter((r) => r.type === 'power')),
     [reports],
   )
-  const verifiedCount = clusters.filter((cluster) => cluster.verified).length
 
-  // Service errors carry a translation key; anything else is a raw SDK message.
+  useEffect(() => {
+    if (status !== 'authenticated' || expiredUnverifiedReports.length === 0) {
+      return
+    }
+    purgeExpiredUnverifiedReports(expiredUnverifiedReports)
+  }, [expiredUnverifiedReports, status])
+
+  const filteredClusters = useMemo(() => {
+    if (verificationFilter === 'verified') {
+      return allPowerClusters.filter((cluster) => cluster.verified)
+    }
+    if (verificationFilter === 'unverified') {
+      return allPowerClusters.filter((cluster) => !cluster.verified)
+    }
+    return allPowerClusters
+  }, [allPowerClusters, verificationFilter])
+
+  const verifiedCount = allPowerClusters.filter(
+    (cluster) => cluster.verified,
+  ).length
+
+  const regionStats = useMemo(
+    () =>
+      computeRegionStats(allPowerClusters, TOP_FUEL_STATIONS, stationStatuses),
+    [allPowerClusters, stationStatuses],
+  )
+
   const describe = useCallback(
     (error) => (error.key ? t(error.key, error.vars) : error.message),
     [t],
@@ -73,12 +128,39 @@ function MapDashboard() {
     setPanel('profile')
   }, [isAnonymous, t])
 
-  const submit = useCallback(
-    async (type, { lat, lng }) => {
+  const handleCaptureLocation = useCallback(async () => {
+    if (!canWrite) {
+      requireSignIn()
+      return null
+    }
+    const coords = (await locate()) ??
+      position ?? {
+        lat: NOUAKCHOTT_CENTER[0],
+        lng: NOUAKCHOTT_CENTER[1],
+      }
+    map?.flyTo([coords.lat, coords.lng], Math.max(map.getZoom(), DEFAULT_ZOOM))
+    return coords
+  }, [canWrite, locate, map, position, requireSignIn])
+
+  const handleSubmitReport = useCallback(
+    async ({ type = 'power', coords, details }) => {
+      if (!canWrite) {
+        requireSignIn()
+        return
+      }
       setBusy(true)
       try {
-        await createReport({ uid, type, lat, lng })
-        map?.flyTo([lat, lng], Math.max(map.getZoom(), DEFAULT_ZOOM))
+        await createReport({
+          uid,
+          type,
+          lat: coords.lat,
+          lng: coords.lng,
+          details,
+        })
+        map?.flyTo(
+          [coords.lat, coords.lng],
+          Math.max(map.getZoom(), DEFAULT_ZOOM),
+        )
         setNotice({
           tone: 'success',
           text: t('notice.reported', { type: t(REPORT_TYPES[type].shortKey) }),
@@ -92,31 +174,22 @@ function MapDashboard() {
               : t('notice.saveFailed', { message: writeError.message }),
         })
       } finally {
-        setPendingType(null)
         setBusy(false)
       }
     },
-    [describe, map, t, uid],
+    [canWrite, describe, map, requireSignIn, t, uid],
   )
 
-  // Always post directly at the user's current location without requiring a
-  // manual tap on the map.
-  const handleReport = useCallback(
-    async (type = 'power') => {
-      if (!canWrite) {
-        requireSignIn()
-        return
+  const handleDeleteReport = useCallback(
+    async (reportId) => {
+      try {
+        await deleteReport(reportId)
+        setNotice({ tone: 'info', text: t('notice.reportDeleted') })
+      } catch (deleteError) {
+        setNotice({ tone: 'error', text: describe(deleteError) })
       }
-      if (busy) return
-
-      setPendingType(type)
-      const coords = position ?? (await locate()) ?? {
-        lat: NOUAKCHOTT_CENTER[0],
-        lng: NOUAKCHOTT_CENTER[1],
-      }
-      await submit(type, coords)
     },
-    [busy, canWrite, locate, position, requireSignIn, submit],
+    [describe, t],
   )
 
   const handleVote = useCallback(
@@ -175,16 +248,23 @@ function MapDashboard() {
           className="h-full w-full"
         >
           <MapTiles />
+          <RegionZonesLayer visible={showRegions} regions={regionStats} />
           <GasStationLayer
+            visible={showStations}
+            stations={TOP_FUEL_STATIONS}
+            stationStatuses={stationStatuses}
             position={position}
             canVote={canWrite}
             onReportGas={handleStationReport}
           />
           <AnnouncementLayer announcements={announcements} />
           <ReportLayers
-            clusters={clusters}
+            clusters={filteredClusters}
             onVote={handleVote}
+            onDeleteReport={handleDeleteReport}
             canVote={canWrite}
+            uid={uid}
+            isAdmin={isAdmin}
             votedIds={votedIds}
           />
           <RecenterMap position={position} />
@@ -198,7 +278,10 @@ function MapDashboard() {
               {t('app.city')}
             </h1>
             <p className="tabular truncate text-[11px] text-zinc-600 dark:text-zinc-400">
-              {t('app.counts', { verified: verifiedCount, total: clusters.length })}
+              {t('app.counts', {
+                verified: verifiedCount,
+                total: allPowerClusters.length,
+              })}
             </p>
           </div>
           <ConnectionIndicator />
@@ -209,9 +292,13 @@ function MapDashboard() {
             onOpenAbout={() => setPanel('about')}
             onOpenOfficial={() => setPanel('official')}
             onOpenAdmin={() => setPanel('admin')}
-            onRecenter={handleRecenter}
-            canRecenter={true}
             isAdmin={isAdmin}
+            showStations={showStations}
+            onToggleStations={() => setShowStations((prev) => !prev)}
+            showRegions={showRegions}
+            onToggleRegions={() => setShowRegions((prev) => !prev)}
+            verificationFilter={verificationFilter}
+            onChangeVerificationFilter={setVerificationFilter}
           />
         </div>
 
@@ -263,13 +350,9 @@ function MapDashboard() {
       <MapControls map={map} onRecenter={handleRecenter} />
 
       <ReportActionBar
-        onReport={handleReport}
-        pendingType={pendingType}
+        onCaptureLocation={handleCaptureLocation}
+        onSubmitReport={handleSubmitReport}
         disabled={busy || status !== 'authenticated'}
-        locked={!canWrite}
-        lockedReason={
-          isAnonymous ? t('bar.lockedGuest') : t('bar.lockedUnverified')
-        }
       />
 
       {panel === 'profile' && <ProfilePanel onClose={() => setPanel(null)} />}

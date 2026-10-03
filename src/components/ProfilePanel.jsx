@@ -1,3 +1,4 @@
+import { Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { DAILY_REPORT_LIMIT, REPORT_TYPES, accentFor } from '../constants'
 import { useAuth } from '../context/useAuth'
@@ -5,6 +6,7 @@ import { useOfficial } from '../hooks/useOfficial'
 import { useMyReports } from '../hooks/useReports'
 import { useT } from '../i18n/useI18n'
 import { refreshIdentity, signOut } from '../services/auth'
+import { deleteReport } from '../services/reports'
 import { useTheme } from '../theme/useTheme'
 import Sheet from './Sheet'
 import SignInPanel from './SignInPanel'
@@ -26,8 +28,6 @@ function VerifyEmailNotice({ email }) {
       <button
         type="button"
         disabled={busy}
-        // The link is opened in another tab, so this tab has to refresh the
-        // token before it can see the new state.
         onClick={async () => {
           setBusy(true)
           try {
@@ -56,6 +56,8 @@ function ProfilePanel({ onClose }) {
   const { isDark } = useTheme()
   const t = useT()
   const [copied, setCopied] = useState(false)
+  const [deletingId, setDeletingId] = useState(null)
+  const [deleteError, setDeleteError] = useState(null)
 
   const formatTime = (createdAt) =>
     createdAt?.toDate ? createdAt.toDate().toLocaleString() : t('popup.sending')
@@ -68,6 +70,18 @@ function ProfilePanel({ onClose }) {
         ? t('profile.fullAccess')
         : t('profile.notVerified')
 
+  const handleDelete = async (reportId) => {
+    setDeletingId(reportId)
+    setDeleteError(null)
+    try {
+      await deleteReport(reportId)
+    } catch (err) {
+      setDeleteError(err.message)
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   return (
     <Sheet
       title={isAnonymous ? t('profile.guest') : identityLabel}
@@ -76,8 +90,6 @@ function ProfilePanel({ onClose }) {
       onClose={onClose}
     >
       {uid && (
-        // Needed verbatim to be granted moderator access, so it has to be
-        // copyable rather than truncated for looks.
         <button
           type="button"
           onClick={() => {
@@ -108,9 +120,9 @@ function ProfilePanel({ onClose }) {
         {t('profile.dailyLimit', { limit: DAILY_REPORT_LIMIT })}
       </p>
 
-      {error && (
+      {(error || deleteError) && (
         <p role="alert" className="mt-3 text-sm font-medium text-red-500">
-          {t('profile.loadFailed', { message: error.message })}
+          {deleteError || t('profile.loadFailed', { message: error.message })}
         </p>
       )}
 
@@ -124,21 +136,39 @@ function ProfilePanel({ onClose }) {
         {reports.map((report) => {
           const type = REPORT_TYPES[report.type]
           const Icon = TYPE_ICONS[type.iconName]
+          const isDeleting = deletingId === report.id
           return (
-            <li key={report.id} className="flex items-center gap-3 py-3">
-              <Icon
-                size={16}
-                strokeWidth={2}
-                aria-hidden="true"
-                className="shrink-0"
-                style={{ color: accentFor(type, isDark) }}
-              />
-              <span className="flex-1 text-sm font-medium">
-                {t(type.shortKey)}
-              </span>
-              <span className="tabular text-xs text-zinc-500 dark:text-zinc-400">
-                {formatTime(report.createdAt)}
-              </span>
+            <li key={report.id} className="py-3">
+              <div className="flex items-center gap-3">
+                <Icon
+                  size={16}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                  className="shrink-0"
+                  style={{ color: accentFor(type, isDark) }}
+                />
+                <span className="flex-1 text-sm font-medium">
+                  {t(type.shortKey)}
+                </span>
+                <span className="tabular text-xs text-zinc-500 dark:text-zinc-400">
+                  {formatTime(report.createdAt)}
+                </span>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => handleDelete(report.id)}
+                  aria-label={t('report.delete')}
+                  title={t('report.delete')}
+                  className="flex size-8 shrink-0 items-center justify-center rounded-full text-red-500 transition-colors hover:bg-red-500/15 disabled:opacity-40"
+                >
+                  <Trash2 size={14} strokeWidth={2.2} aria-hidden="true" />
+                </button>
+              </div>
+              {report.details && (
+                <p className="mt-1 ps-7 text-xs text-zinc-500 dark:text-zinc-400">
+                  {report.details}
+                </p>
+              )}
             </li>
           )
         })}

@@ -13,7 +13,7 @@ export default {
   'common.publish': 'Publish',
   'common.discard': 'Discard',
 
-  'app.city': 'Nouakchott',
+  'app.city': 'N.E.M.',
   'app.counts': '{verified} verified · {total} active',
 
   'menu.label': 'Menu',
@@ -238,8 +238,42 @@ export default {
   'station.hasGas': 'Has Gas',
   'station.noGas': 'No Gas',
   'station.tally': '{has} has gas · {out} no gas',
+  'station.directions': 'Get Directions',
+  'station.directionsShort': 'Directions',
   'map.myLocation': 'My location',
   'map.gasStations': 'Toggle gas stations',
   'map.zoomIn': 'Zoom in',
   'map.zoomOut': 'Zoom out',
+
+  'filter.verificationLabel': 'Filter by verification status',
+  'filter.all': 'All',
+  'filter.verified': 'Verified',
+  'filter.unverified': 'Unverified',
+  'filter.timeLabel': 'Filter by time window',
+  'filter.fuelStations': 'Top Fuel Stations',
+  'filter.regions': 'Regions',
+
+  'settings.title': 'Settings',
+  'settings.verificationFilter': 'Verification Filter',
+
+  'region.sectionTitle': 'Nouakchott Regions',
+  'region.hoverHint': 'Tap a region on the map for power & fuel stats',
+  'region.powerLevel': 'Grid Power Level',
+  'region.outages': '{verified} verified · {total} active outages',
+  'region.gasStations': 'Top Fuel Stations',
+  'region.gasSummary': '{has}/{total} with gas',
+  'region.status.normal': 'Normal',
+  'region.status.warning': 'Partial Disruption',
+  'region.status.critical': 'Major Disruption',
+
+  'report.fabLabel': 'Report Power Outage',
+  'report.fabSub': 'Auto-captures your current GPS location',
+  'report.modalTitle': 'Report Power Outage',
+  'report.gpsCaptured': 'GPS locked: {lat}, {lng}',
+  'report.detailsLabel': 'Outage details (optional)',
+  'report.detailsPlaceholder':
+    'E.g., transformer issue, street lights out since 2 PM…',
+  'report.submitNow': 'Submit Report',
+  'report.delete': 'Delete report',
+  'notice.reportDeleted': 'Report deleted.',
 }

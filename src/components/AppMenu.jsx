@@ -1,4 +1,12 @@
-import { Menu, Moon, Sun } from 'lucide-react'
+import {
+  Fuel,
+  Layers,
+  Menu,
+  Moon,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sun,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { COMMUNITY_RADIUS_KM } from '../constants'
 import { useAuth } from '../context/useAuth'
@@ -8,20 +16,37 @@ import { useTheme } from '../theme/useTheme'
 import InstallButton from './InstallButton'
 import { MENU_ICONS } from './icons'
 
-const ROW =
-  'flex w-full items-center gap-3 px-4 py-3 text-start text-sm font-medium outline-none transition-all duration-300 active:bg-black/5 focus-visible:bg-black/5 dark:active:bg-white/10 dark:focus-visible:bg-white/10 disabled:opacity-40'
+const VERIFICATION_OPTIONS = [
+  { id: 'all', labelKey: 'filter.all' },
+  { id: 'verified', labelKey: 'filter.verified' },
+  { id: 'unverified', labelKey: 'filter.unverified' },
+]
 
-function MenuRow({ icon: Icon, label, hint, onClick, disabled }) {
+function MenuRow({
+  icon: Icon,
+  label,
+  hint,
+  onClick,
+  disabled,
+  destructive = false,
+}) {
   return (
-    <button type="button" onClick={onClick} disabled={disabled} className={ROW}>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-start text-sm font-medium transition-all duration-300 hover:bg-black/5 active:bg-black/10 disabled:opacity-40 dark:hover:bg-white/10 dark:active:bg-white/15 ${
+        destructive ? 'text-red-500' : ''
+      }`}
+    >
       <Icon
         size={18}
         strokeWidth={2}
         aria-hidden="true"
-        className="shrink-0 text-zinc-500 dark:text-zinc-400"
+        className={`shrink-0 ${destructive ? '' : 'text-zinc-500 dark:text-zinc-400'}`}
       />
-      <span className="flex-1">
-        {label}
+      <span className="min-w-0 flex-1">
+        <span className="block">{label}</span>
         {hint && (
           <span className="block text-xs font-normal text-zinc-500 dark:text-zinc-400">
             {hint}
@@ -32,10 +57,41 @@ function MenuRow({ icon: Icon, label, hint, onClick, disabled }) {
   )
 }
 
-/**
- * Everything a guest can do stays visible but is labelled, rather than hidden,
- * so people can see what signing in would unlock.
- */
+function ToggleRow({ icon: Icon, label, checked, onChange }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-2 text-start text-sm font-medium transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+    >
+      <span className="flex items-center gap-3">
+        <Icon
+          size={17}
+          strokeWidth={2}
+          aria-hidden="true"
+          className="shrink-0 text-zinc-500 dark:text-zinc-400"
+        />
+        <span>{label}</span>
+      </span>
+      <span
+        className={`relative inline-flex h-6 w-10 shrink-0 items-center rounded-full transition-colors duration-200 ${
+          checked
+            ? 'bg-emerald-500'
+            : 'bg-zinc-300 dark:bg-zinc-700'
+        }`}
+      >
+        <span
+          className={`inline-block size-4.5 rounded-full bg-white shadow transition-transform duration-200 ${
+            checked ? 'translate-x-5' : 'translate-x-0.5'
+          }`}
+        />
+      </span>
+    </button>
+  )
+}
+
 function AppMenu({
   onOpenCommunity,
   onOpenProfile,
@@ -43,9 +99,13 @@ function AppMenu({
   onOpenAbout,
   onOpenOfficial,
   onOpenAdmin,
-  onRecenter,
-  canRecenter,
   isAdmin,
+  showStations,
+  onToggleStations,
+  showRegions,
+  onToggleRegions,
+  verificationFilter,
+  onChangeVerificationFilter,
 }) {
   const { canWrite, isAnonymous, identityLabel } = useAuth()
   const { t, lang, setLang } = useI18n()
@@ -54,47 +114,41 @@ function AppMenu({
   const triggerRef = useRef(null)
   const menuRef = useRef(null)
 
+  const close = () => setOpen(false)
+
   useEffect(() => {
-    if (!open) return
+    if (!open) return undefined
 
-    const items = () =>
-      Array.from(menuRef.current?.querySelectorAll('button:not(:disabled)') ?? [])
+    const trigger = triggerRef.current
+    const first = menuRef.current?.querySelector('button:not(:disabled)')
+    first?.focus()
 
-    // Move keyboard and screen-reader users into the menu when it opens.
-    const frame = requestAnimationFrame(() => items()[0]?.focus())
-
-    const onKeyDown = (event) => {
+    const handleKey = (event) => {
       if (event.key === 'Escape') {
+        event.stopPropagation()
         setOpen(false)
-        triggerRef.current?.focus()
-        return
       }
-
-      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
-      const list = items()
-      if (list.length === 0) return
-      event.preventDefault()
-      const step = event.key === 'ArrowDown' ? 1 : -1
-      const current = list.indexOf(document.activeElement)
-      list[(current + step + list.length) % list.length].focus()
     }
+    window.addEventListener('keydown', handleKey)
 
-    window.addEventListener('keydown', onKeyDown)
     return () => {
-      cancelAnimationFrame(frame)
-      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keydown', handleKey)
+      trigger?.focus()
     }
   }, [open])
 
-  const close = () => {
-    setOpen(false)
-    // Return focus after React removes the menu from the document.
-    requestAnimationFrame(() => triggerRef.current?.focus())
+  const choose = (action) => () => {
+    close()
+    action()
   }
 
-  const choose = (action) => () => {
-    setOpen(false)
-    action?.()
+  const handleSignOut = async () => {
+    close()
+    try {
+      await signOut()
+    } catch {
+      // If signOut fails, the auth listener leaves the current user in place.
+    }
   }
 
   return (
@@ -128,7 +182,6 @@ function AppMenu({
 
       {open && (
         <>
-          {/* Catches outside taps without stealing the first one from the map. */}
           <div
             className="fixed inset-0 z-[1090]"
             onClick={close}
@@ -139,32 +192,89 @@ function AppMenu({
             ref={menuRef}
             role="dialog"
             aria-label={t('menu.label')}
-            // Leave clearance at the top (header) and bottom (ReportActionBar)
-            // so the menu never collides with the floating report pill.
-            className="glass-sheet absolute top-full end-0 z-[1095] mt-2 flex max-h-[calc(100dvh-10.5rem)] w-[min(18rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-3xl"
+            className="glass-sheet absolute top-full end-0 z-[1095] mt-2 flex max-h-[calc(100dvh-6.5rem)] w-[min(19.5rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-3xl"
           >
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
               <div className="border-b border-black/5 px-4 py-3 dark:border-white/10">
-                <p className="truncate font-mono text-xs font-semibold tracking-[0.15em] uppercase">
-                  {isAnonymous ? t('menu.guest') : identityLabel}
+                <p className="font-mono text-[10px] font-semibold tracking-[0.18em] text-zinc-500 uppercase dark:text-zinc-400">
+                  {canWrite ? t('menu.signedIn') : t('menu.browsing')}
                 </p>
-                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                  {canWrite
-                    ? t('menu.statusVerified')
-                    : isAnonymous
-                      ? t('menu.statusGuest')
-                      : t('menu.statusUnverified')}
+                <p className="mt-0.5 truncate text-sm font-semibold">
+                  {isAnonymous
+                    ? t('menu.guest')
+                    : identityLabel || t('menu.unverified')}
                 </p>
+              </div>
+
+              {/* Settings section: Regions (on by default), Top Fuel Stations (off by default), and Verification Filter in Settings only */}
+              <div className="border-b border-black/5 py-2 dark:border-white/10">
+                <div className="flex items-center gap-2 px-4 py-1">
+                  <SlidersHorizontal
+                    size={12}
+                    strokeWidth={2.2}
+                    aria-hidden="true"
+                    className="text-zinc-500 dark:text-zinc-400"
+                  />
+                  <p className="font-mono text-[10px] font-semibold tracking-[0.18em] text-zinc-500 uppercase dark:text-zinc-400">
+                    {t('settings.title')}
+                  </p>
+                </div>
+
+                <ToggleRow
+                  icon={Layers}
+                  label={t('region.sectionTitle')}
+                  checked={showRegions}
+                  onChange={onToggleRegions}
+                />
+                <ToggleRow
+                  icon={Fuel}
+                  label={t('filter.fuelStations')}
+                  checked={showStations}
+                  onChange={onToggleStations}
+                />
+
+                {/* Verification Filter setting inside Settings only */}
+                <div className="px-4 pt-2 pb-1.5">
+                  <div className="flex items-center gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                    <ShieldCheck
+                      size={15}
+                      strokeWidth={2}
+                      aria-hidden="true"
+                      className="text-zinc-500 dark:text-zinc-400"
+                    />
+                    <span>{t('settings.verificationFilter')}</span>
+                  </div>
+                  <div
+                    role="group"
+                    aria-label={t('filter.verificationLabel')}
+                    className="mt-1.5 grid grid-cols-3 gap-1"
+                  >
+                    {VERIFICATION_OPTIONS.map((option) => {
+                      const active = verificationFilter === option.id
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => onChangeVerificationFilter(option.id)}
+                          className={`min-h-9 rounded-full px-2 text-xs font-semibold transition-all duration-200 ${
+                            active
+                              ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
+                              : 'bg-black/5 text-zinc-700 dark:bg-white/10 dark:text-zinc-300'
+                          }`}
+                        >
+                          {t(option.labelKey)}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
 
               <MenuRow
                 icon={MENU_ICONS.community}
                 label={t('menu.community')}
-                hint={
-                  canWrite
-                    ? t('menu.communityOpen', { km: COMMUNITY_RADIUS_KM })
-                    : t('menu.communityLocked')
-                }
+                hint={t('menu.communityHint', { km: COMMUNITY_RADIUS_KM })}
                 onClick={choose(onOpenCommunity)}
               />
               <MenuRow
@@ -172,13 +282,6 @@ function AppMenu({
                 label={isAnonymous ? t('common.signIn') : t('menu.myReports')}
                 hint={isAnonymous ? t('menu.signInHint') : undefined}
                 onClick={choose(onOpenProfile)}
-              />
-              <MenuRow
-                icon={MENU_ICONS.recenter}
-                label={t('menu.recenter')}
-                hint={canRecenter ? undefined : t('menu.recenterOff')}
-                disabled={!canRecenter}
-                onClick={choose(onRecenter)}
               />
 
               <div className="border-t border-black/5 dark:border-white/10" />
@@ -193,6 +296,7 @@ function AppMenu({
                 <MenuRow
                   icon={MENU_ICONS.admin}
                   label={t('menu.admin')}
+                  hint={t('menu.adminHint')}
                   onClick={choose(onOpenAdmin)}
                 />
               )}
@@ -202,6 +306,7 @@ function AppMenu({
               <MenuRow
                 icon={MENU_ICONS.legend}
                 label={t('menu.legend')}
+                hint={t('menu.legendHint')}
                 onClick={choose(onOpenLegend)}
               />
               <MenuRow
@@ -211,48 +316,48 @@ function AppMenu({
                 onClick={choose(onOpenAbout)}
               />
 
-              <InstallButton className={ROW} label={t('menu.install')} withIcon />
+              <InstallButton variant="menu" onDone={close} />
 
               {!isAnonymous && (
                 <>
                   <div className="border-t border-black/5 dark:border-white/10" />
                   <MenuRow
                     icon={MENU_ICONS.signOut}
-                    label={t('common.signOut')}
-                    onClick={choose(signOut)}
+                    label={t('menu.signOut')}
+                    onClick={handleSignOut}
+                    destructive
                   />
                 </>
               )}
             </div>
 
-            {/* Kept outside the scroll area so changing language is always
-                reachable, even on the shortest supported viewport — someone
-                who cannot read the current language needs it first. */}
             <div className="shrink-0 border-t border-black/5 px-4 py-3 dark:border-white/10">
-              <p className="font-mono text-[10px] font-semibold tracking-[0.15em] text-zinc-500 uppercase dark:text-zinc-400">
+              <p className="font-mono text-[10px] font-semibold tracking-[0.18em] text-zinc-500 uppercase dark:text-zinc-400">
                 {t('menu.language')}
               </p>
               <div
                 role="group"
                 aria-label={t('menu.language')}
-                className="mt-2 flex gap-1"
+                className="mt-2 grid grid-cols-3 gap-1.5"
               >
-                {LANGUAGES.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    lang={option.id}
-                    aria-pressed={lang === option.id}
-                    onClick={() => setLang(option.id)}
-                    className={`min-h-11 flex-1 rounded-full text-xs font-semibold outline-none transition-all duration-300 focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-white ${
-                      lang === option.id
-                        ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
-                        : 'bg-black/5 text-zinc-700 dark:bg-white/10 dark:text-zinc-200'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
+                {LANGUAGES.map((item) => {
+                  const active = item.code === lang
+                  return (
+                    <button
+                      key={item.code}
+                      type="button"
+                      onClick={() => setLang(item.code)}
+                      aria-pressed={active}
+                      className={`min-h-11 rounded-full px-2 text-xs font-semibold transition-all duration-300 ${
+                        active
+                          ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
+                          : 'bg-black/5 text-zinc-700 dark:bg-white/10 dark:text-zinc-300'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           </div>

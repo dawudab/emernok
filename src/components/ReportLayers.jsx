@@ -1,4 +1,5 @@
 import L from 'leaflet'
+import { Trash2 } from 'lucide-react'
 import { Fragment, useMemo } from 'react'
 import { Circle, Marker, Popup } from 'react-leaflet'
 import {
@@ -11,8 +12,6 @@ import { useT } from '../i18n/useI18n'
 import { VOTE_RESTORED, VOTE_STILL_OUT } from '../services/reports'
 import { MARKER_GLYPHS } from './markerGlyphs'
 
-// Leaflet's default marker relies on bundled image assets, so we draw our own
-// pin: fill shows validation status, the glyph shows which utility it is.
 function buildIcon(iconName, color, verified) {
   const size = verified ? 34 : 28
   return L.divIcon({
@@ -24,10 +23,17 @@ function buildIcon(iconName, color, verified) {
   })
 }
 
-function ReportLayers({ clusters, onVote, canVote, votedIds }) {
+function ReportLayers({
+  clusters,
+  onVote,
+  onDeleteReport,
+  canVote,
+  uid,
+  isAdmin,
+  votedIds,
+}) {
   const t = useT()
 
-  // serverTimestamp() is null locally until the write round-trips.
   const formatTime = (createdAt) =>
     createdAt?.toDate ? createdAt.toDate().toLocaleString() : t('popup.sending')
 
@@ -60,9 +66,12 @@ function ReportLayers({ clusters, onVote, canVote, votedIds }) {
       : STATUS_COLORS.unverified
     const alreadyVoted = votedIds.has(cluster.latest.id)
 
+    // Find a report in this cluster owned by the current user (or latest if admin)
+    const deletableReport = isAdmin
+      ? cluster.latest
+      : cluster.reports.find((r) => uid && r.uid === uid)
+
     return (
-      // A plain element would be injected into the map container's DOM, so the
-      // pair has to be grouped with a keyed Fragment instead.
       <Fragment key={cluster.id}>
         <Circle
           center={[cluster.lat, cluster.lng]}
@@ -93,6 +102,11 @@ function ReportLayers({ clusters, onVote, canVote, votedIds }) {
                     total: VERIFY_MIN_USERS,
                   })}
             </span>
+            {cluster.details && (
+              <span className="mt-1.5 block rounded-xl bg-black/5 px-2.5 py-1.5 text-xs italic dark:bg-white/10">
+                “{cluster.details}”
+              </span>
+            )}
             <span className="tabular mt-1 block text-xs opacity-70">
               {t('popup.latest', { time: formatTime(cluster.latest.createdAt) })}
             </span>
@@ -127,6 +141,18 @@ function ReportLayers({ clusters, onVote, canVote, votedIds }) {
                 </button>
               </span>
             )}
+
+            {deletableReport && (
+              <button
+                type="button"
+                onClick={() => onDeleteReport(deletableReport.id)}
+                className="mt-2 flex min-h-8 w-full items-center justify-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-3 text-xs font-semibold text-red-600 transition-colors hover:bg-red-500/20 dark:text-red-400"
+              >
+                <Trash2 size={12} strokeWidth={2.2} aria-hidden="true" />
+                <span>{t('report.delete')}</span>
+              </button>
+            )}
+
             {!canVote && (
               <span className="mt-1 block text-[11px] opacity-70">
                 {t('popup.signInToVote')}

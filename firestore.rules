@@ -244,7 +244,7 @@ service cloud.firestore {
 
     function isValidReport(data) {
       return data.keys().hasAll(['uid', 'type', 'lat', 'lng', 'geohash', 'createdAt', 'stillOutCount', 'restoredCount'])
-        && data.keys().hasOnly(['uid', 'type', 'lat', 'lng', 'geohash', 'createdAt', 'stillOutCount', 'restoredCount'])
+        && data.keys().hasOnly(['uid', 'type', 'lat', 'lng', 'geohash', 'createdAt', 'stillOutCount', 'restoredCount', 'details'])
         && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128
         && data.type is string && data.type.size() <= 20 && data.type in ['power', 'water', 'fuel']
         && data.lat is number && data.lat >= -90 && data.lat <= 90
@@ -252,7 +252,8 @@ service cloud.firestore {
         && data.geohash is string && data.geohash.size() > 0 && data.geohash.size() <= 20
         && data.createdAt is timestamp
         && data.stillOutCount is int && data.stillOutCount >= 0
-        && data.restoredCount is int && data.restoredCount >= 0;
+        && data.restoredCount is int && data.restoredCount >= 0
+        && (!('details' in data) || (data.details is string && data.details.size() <= 280));
     }
 
     match /reports/{reportId} {
@@ -286,7 +287,9 @@ service cloud.firestore {
             && incoming().stillOutCount == existing().stillOutCount)
         );
 
-      allow delete: if false;
+      allow delete: if isAdmin()
+        || (isSignedIn() && existing().uid == request.auth.uid)
+        || (isSignedIn() && request.time > existing().createdAt + duration.value(24, 'h'));
 
       function isValidVote(data, voterId) {
         return data.keys().hasAll(['uid', 'value', 'createdAt'])

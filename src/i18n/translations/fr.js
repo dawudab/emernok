@@ -11,7 +11,7 @@ export default {
   'common.publish': 'Publier',
   'common.discard': 'Supprimer',
 
-  'app.city': 'Nouakchott',
+  'app.city': 'N.E.M.',
   'app.counts': '{verified} confirmées · {total} actives',
 
   'menu.label': 'Menu',
@@ -249,8 +249,42 @@ export default {
   'station.hasGas': 'Carburant dispo',
   'station.noGas': 'Plus de carburant',
   'station.tally': '{has} disponible · {out} épuisé',
+  'station.directions': 'Itinéraire',
+  'station.directionsShort': 'Itinéraire',
   'map.myLocation': 'Ma position',
   'map.gasStations': 'Afficher/masquer les stations-service',
   'map.zoomIn': 'Zoomer',
   'map.zoomOut': 'Dézoomer',
+
+  'filter.verificationLabel': 'Filtrer par statut de vérification',
+  'filter.all': 'Toutes',
+  'filter.verified': 'Confirmées',
+  'filter.unverified': 'Non confirmées',
+  'filter.timeLabel': 'Filtrer par période',
+  'filter.fuelStations': 'Meilleures stations-service',
+  'filter.regions': 'Régions',
+
+  'settings.title': 'Paramètres',
+  'settings.verificationFilter': 'Filtre de vérification',
+
+  'region.sectionTitle': 'Régions de Nouakchott',
+  'region.hoverHint': 'Touchez une région sur la carte pour voir les stats',
+  'region.powerLevel': 'Niveau d’électricité',
+  'region.outages': '{verified} confirmées · {total} pannes actives',
+  'region.gasStations': 'Meilleures stations',
+  'region.gasSummary': '{has}/{total} avec carburant',
+  'region.status.normal': 'Normal',
+  'region.status.warning': 'Perturbation partielle',
+  'region.status.critical': 'Panne majeure',
+
+  'report.fabLabel': 'Signaler une coupure',
+  'report.fabSub': 'Capture automatiquement votre position GPS',
+  'report.modalTitle': 'Signaler une coupure d’électricité',
+  'report.gpsCaptured': 'GPS capturé : {lat}, {lng}',
+  'report.detailsLabel': 'Détails de la panne (facultatif)',
+  'report.detailsPlaceholder':
+    'Ex. : panne de transformateur, rue sans courant depuis 14h…',
+  'report.submitNow': 'Envoyer le signalement',
+  'report.delete': 'Supprimer le signalement',
+  'notice.reportDeleted': 'Signalement supprimé.',
 }

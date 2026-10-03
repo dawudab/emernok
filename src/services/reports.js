@@ -2,6 +2,7 @@ import { geohashForLocation } from 'geofire-common'
 import {
   Timestamp,
   collection,
+  deleteDoc,
   doc,
   increment,
   limit,
@@ -15,6 +16,7 @@ import {
 import { OperationType, db, handleFirestoreError } from '../firebaseConfig'
 import {
   DAILY_REPORT_LIMIT,
+  MAX_REPORT_DETAILS_LENGTH,
   REPORT_COOLDOWN_SECONDS,
   REPORT_TTL_HOURS,
   REPORT_TYPES,
@@ -29,8 +31,6 @@ const DAY_MS = 24 * 60 * 60 * 1000
 export const VOTE_STILL_OUT = 'still_out'
 export const VOTE_RESTORED = 'restored'
 
-// Carry a translation key alongside the English message: these are the only
-// service errors shown to users verbatim.
 class TranslatableError extends Error {
   constructor(message, key, vars) {
     super(message)
@@ -57,6 +57,13 @@ function toMillis(value) {
   return value?.toMillis?.() ?? 0
 }
 
+export function isWithinHours(report, hours = REPORT_TTL_HOURS) {
+  const createdMs = toMillis(report.createdAt)
+  // Optimistic local writes have a null createdAt until the server responds; keep them visible.
+  if (!createdMs) return true
+  return Date.now() - createdMs <= hours * 60 * 60 * 1000
+}
+
 // Enough neighbours confirmed service is back, so stop showing the outage.
 export function isResolved(report) {
   const restored = report.restoredCount ?? 0
@@ -65,16 +72,18 @@ export function isResolved(report) {
 
 /**
  * Writes the report and the author's rate-limit counter in one transaction.
- * The rules require both halves (via getAfter), so a client cannot write a
- * report while skipping its own counter bump.
  */
-export async function createReport({ uid, type, lat, lng }) {
+export async function createReport({ uid, type, lat, lng, details }) {
   if (!db) throw new Error('Firebase is not configured')
   if (!uid) throw new Error('Not signed in yet')
   if (!REPORT_TYPES[type]) throw new Error(`Unknown report type: ${type}`)
 
   const statsRef = doc(db, USER_STATS_COLLECTION, uid)
   const reportRef = doc(collection(db, REPORTS_COLLECTION))
+  const trimmedDetails =
+    typeof details === 'string'
+      ? details.trim().slice(0, MAX_REPORT_DETAILS_LENGTH)
+      : ''
 
   try {
     await runTransaction(db, async (transaction) => {
@@ -98,7 +107,6 @@ export async function createReport({ uid, type, lat, lng }) {
           )
         }
 
-        // Rolling 24h window, reset once it elapses.
         if (now - toMillis(stats.dayStartedAt) < DAY_MS) {
           if (stats.dailyCount >= DAILY_REPORT_LIMIT) {
             throw new RateLimitError(
@@ -118,7 +126,8 @@ export async function createReport({ uid, type, lat, lng }) {
         dailyCount,
         dayStartedAt,
       })
-      transaction.set(reportRef, {
+
+      const payload = {
         uid,
         type,
         lat,
@@ -127,7 +136,11 @@ export async function createReport({ uid, type, lat, lng }) {
         createdAt: serverTimestamp(),
         stillOutCount: 0,
         restoredCount: 0,
-      })
+      }
+      if (trimmedDetails) {
+        payload.details = trimmedDetails
+      }
+      transaction.set(reportRef, payload)
     })
   } catch (error) {
     if (error instanceof TranslatableError) throw error
@@ -141,9 +154,42 @@ export async function createReport({ uid, type, lat, lng }) {
 }
 
 /**
- * One vote per user per report. The vote document is the proof: rules only
- * accept the counter increment when the matching vote doc is created in the
- * same commit and did not already exist.
+ * Deletes a single report document (permitted for the report's author, an
+ * admin, or when an unverified report is older than 24 hours).
+ */
+export async function deleteReport(reportId) {
+  if (!db) throw new Error('Firebase is not configured')
+  if (!reportId) throw new Error('Missing report ID')
+
+  try {
+    await deleteDoc(doc(db, REPORTS_COLLECTION, reportId))
+  } catch (error) {
+    if (isPermissionError(error)) {
+      handleFirestoreError(
+        error,
+        OperationType.DELETE,
+        `${REPORTS_COLLECTION}/${reportId}`,
+      )
+    }
+    throw error
+  }
+}
+
+/**
+ * Automatically deletes any unverified reports that have been up for longer
+ * than 24 hours.
+ */
+export async function purgeExpiredUnverifiedReports(expiredReports) {
+  if (!db || !expiredReports?.length) return
+  await Promise.allSettled(
+    expiredReports.map((report) =>
+      deleteDoc(doc(db, REPORTS_COLLECTION, report.id)),
+    ),
+  )
+}
+
+/**
+ * One vote per user per report.
  */
 export async function voteOnReport({ reportId, uid, value }) {
   if (!db) throw new Error('Firebase is not configured')
@@ -197,7 +243,6 @@ export function subscribeToReports(onReports, onError) {
 
   const reportsQuery = query(
     collection(db, REPORTS_COLLECTION),
-    where('createdAt', '>=', ttlCutoff()),
     orderBy('createdAt', 'desc'),
     limit(MAX_REPORTS),
   )
@@ -222,8 +267,6 @@ export function subscribeToReports(onReports, onError) {
 export function subscribeToUserReports(uid, onReports, onError) {
   if (!db || !uid) return () => {}
 
-  // Query by uid only and sort client-side so it works with automatic
-  // single-field indexes without requiring a composite index deployment.
   const userQuery = query(
     collection(db, REPORTS_COLLECTION),
     where('uid', '==', uid),
@@ -233,7 +276,9 @@ export function subscribeToUserReports(uid, onReports, onError) {
   return onSnapshot(
     userQuery,
     (snapshot) => {
-      const sorted = mapSnapshot(snapshot)
+      const sorted = snapshot.docs
+        .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+        .filter((report) => REPORT_TYPES[report.type] && report.lat != null)
         .sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt))
         .slice(0, 20)
       onReports(sorted)

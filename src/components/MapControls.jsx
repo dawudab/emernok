@@ -6,7 +6,7 @@ function MapControls({ map, onRecenter }) {
   const t = useT()
 
   return (
-    <div className="pointer-events-none absolute end-4 bottom-24 z-20 flex flex-col gap-2">
+    <div className="pointer-events-none absolute end-4 bottom-22 z-20 flex flex-col items-center gap-2">
       <button
         type="button"
         onClick={onRecenter}

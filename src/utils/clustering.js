@@ -1,22 +1,19 @@
 import { distanceBetween } from 'geofire-common'
-import { VERIFY_MIN_USERS, VERIFY_RADIUS_M } from '../constants'
-import { isResolved } from '../services/reports'
+import { REPORT_TTL_HOURS, VERIFY_MIN_USERS, VERIFY_RADIUS_M } from '../constants'
+import { isResolved, isWithinHours } from '../services/reports'
 
 /**
  * Groups reports of the same utility that sit within VERIFY_RADIUS_M of each
- * other. A cluster becomes "verified" once enough *distinct* reporters are in
- * it, so one person spamming pins can never verify their own outage.
- *
- * Deliberately computed on the client from public data: no trusted writer is
- * involved, so there is nothing for a malicious client to forge.
+ * other. If a cluster has not been verified within 24 hours, its expired
+ * reports are separated out so they can be automatically deleted.
  */
-export function buildClusters(reports) {
-  const clusters = []
+export function buildClustersWithExpiry(reports) {
+  const rawClusters = []
 
   for (const report of reports) {
     if (isResolved(report)) continue
 
-    const match = clusters.find(
+    const match = rawClusters.find(
       (cluster) =>
         cluster.type === report.type &&
         distanceBetween([cluster.lat, cluster.lng], [report.lat, report.lng]) *
@@ -26,15 +23,16 @@ export function buildClusters(reports) {
 
     if (match) {
       match.reports.push(report)
-      // Re-centre on the mean so the circle tracks the affected area.
       match.lat =
-        match.reports.reduce((sum, item) => sum + item.lat, 0) / match.reports.length
+        match.reports.reduce((sum, item) => sum + item.lat, 0) /
+        match.reports.length
       match.lng =
-        match.reports.reduce((sum, item) => sum + item.lng, 0) / match.reports.length
+        match.reports.reduce((sum, item) => sum + item.lng, 0) /
+        match.reports.length
       continue
     }
 
-    clusters.push({
+    rawClusters.push({
       id: report.id,
       type: report.type,
       lat: report.lat,
@@ -43,25 +41,60 @@ export function buildClusters(reports) {
     })
   }
 
-  return clusters.map((cluster) => {
-    const reporters = new Set(cluster.reports.map((report) => report.uid))
-    const stillOutCount = cluster.reports.reduce(
+  const activeClusters = []
+  const expiredUnverifiedReports = []
+
+  for (const cluster of rawClusters) {
+    const distinctReporters = new Set(
+      cluster.reports.map((report) => report.uid),
+    )
+    const isClusterVerified = distinctReporters.size >= VERIFY_MIN_USERS
+
+    // If unverified, reports older than 24h expire and are queued for automatic deletion.
+    const validReports = isClusterVerified
+      ? cluster.reports
+      : cluster.reports.filter((report) => {
+          const fresh = isWithinHours(report, REPORT_TTL_HOURS)
+          if (!fresh) expiredUnverifiedReports.push(report)
+          return fresh
+        })
+
+    if (validReports.length === 0) continue
+
+    const reporters = new Set(validReports.map((report) => report.uid))
+    const stillOutCount = validReports.reduce(
       (sum, report) => sum + (report.stillOutCount ?? 0),
       0,
     )
-    const restoredCount = cluster.reports.reduce(
+    const restoredCount = validReports.reduce(
       (sum, report) => sum + (report.restoredCount ?? 0),
       0,
     )
+    const latestWithDetails = validReports.find(
+      (report) => typeof report.details === 'string' && report.details.trim(),
+    )
 
-    return {
+    activeClusters.push({
       ...cluster,
+      reports: validReports,
+      lat:
+        validReports.reduce((sum, item) => sum + item.lat, 0) /
+        validReports.length,
+      lng:
+        validReports.reduce((sum, item) => sum + item.lng, 0) /
+        validReports.length,
       reporterCount: reporters.size,
       verified: reporters.size >= VERIFY_MIN_USERS,
       stillOutCount,
       restoredCount,
-      // Newest report in the cluster is the one users vote on.
-      latest: cluster.reports[0],
-    }
-  })
+      details: latestWithDetails?.details ?? null,
+      latest: validReports[0],
+    })
+  }
+
+  return { clusters: activeClusters, expiredUnverifiedReports }
+}
+
+export function buildClusters(reports) {
+  return buildClustersWithExpiry(reports).clusters
 }

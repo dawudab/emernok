@@ -247,6 +247,10 @@
         },
         "restoredCount": {
           "type": "number"
+        },
+        "details": {
+          "type": "string",
+          "maxLength": 280
         }
       },
       "required": ["uid", "type", "lat", "lng", "geohash", "createdAt", "stillOutCount", "restoredCount"]

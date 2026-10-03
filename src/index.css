@@ -150,6 +150,22 @@ body {
   color: #71717a !important;
 }
 
+.leaflet-tooltip.region-tooltip {
+  background: rgb(255 255 255 / 0.92);
+  color: #09090b;
+  border: 1px solid rgb(0 0 0 / 0.08);
+  border-radius: 18px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.22);
+  padding: 8px 10px;
+}
+
+.dark .leaflet-tooltip.region-tooltip {
+  background: rgb(9 9 11 / 0.92);
+  color: #fafafa;
+  border-color: rgb(255 255 255 / 0.12);
+}
+
 /* Report pins: fill = validation status, icon = utility type.
    See STATUS_COLORS and REPORT_TYPES in src/constants.js */
 .report-pin__dot {

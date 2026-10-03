@@ -1,24 +1,13 @@
 import { distanceBetween } from 'geofire-common'
 import L from 'leaflet'
-import { useEffect, useMemo, useState } from 'react'
+import { ExternalLink, Star } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { Marker, Popup } from 'react-leaflet'
-import { GAS_STATIONS } from '../constants'
 import { useT } from '../i18n/useI18n'
-import {
-  STATUS_HAS_GAS,
-  STATUS_NO_GAS,
-  subscribeToStationStatuses,
-} from '../services/stations'
+import { STATUS_HAS_GAS, STATUS_NO_GAS } from '../services/stations'
 import { MARKER_GLYPHS } from './markerGlyphs'
 
-const OVERPASS_URL =
-  'https://overpass-api.de/api/interpreter?data=' +
-  encodeURIComponent(
-    '[out:json][timeout:10];node["amenity"="fuel"](17.95,-16.05,18.18,-15.85);out body;',
-  )
-
 function buildStationIcon(state) {
-  // state: 'has_gas' | 'no_gas' | 'default'
   const bg =
     state === STATUS_NO_GAS
       ? '#ef4444'
@@ -47,67 +36,16 @@ function formatDistance(metres) {
     : `${(metres / 1000).toFixed(1)}km`
 }
 
-function GasStationLayer({ position, canVote, onReportGas }) {
+function GasStationLayer({
+  visible = true,
+  stations,
+  stationStatuses,
+  position,
+  canVote,
+  onReportGas,
+}) {
   const t = useT()
-  const [osmStations, setOsmStations] = useState([])
-  const [stationStatuses, setStationStatuses] = useState({})
   const [busyStationId, setBusyStationId] = useState(null)
-
-  useEffect(() => {
-    return subscribeToStationStatuses((next) => setStationStatuses(next))
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    fetch(OVERPASS_URL)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (cancelled || !data?.elements) return
-        const parsed = data.elements
-          .filter((el) => el.lat != null && el.lon != null)
-          .map((el) => ({
-            id: `osm-${el.id}`,
-            name:
-              el.tags?.name ||
-              el.tags?.['name:fr'] ||
-              el.tags?.['name:ar'] ||
-              el.tags?.brand ||
-              'Station-service',
-            brand: el.tags?.brand || el.tags?.operator || 'Station',
-            area:
-              el.tags?.['addr:street'] ||
-              el.tags?.['addr:suburb'] ||
-              'Nouakchott',
-            lat: el.lat,
-            lng: el.lon,
-          }))
-        setOsmStations(parsed)
-      })
-      .catch(() => {
-        // Built-in Nouakchott stations remain available offline or if Overpass is unreachable.
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const allStations = useMemo(() => {
-    const merged = [...GAS_STATIONS]
-    for (const candidate of osmStations) {
-      const duplicate = merged.some(
-        (existing) =>
-          distanceBetween(
-            [existing.lat, existing.lng],
-            [candidate.lat, candidate.lng],
-          ) *
-            1000 <
-          150,
-      )
-      if (!duplicate) merged.push(candidate)
-    }
-    return merged
-  }, [osmStations])
 
   const icons = useMemo(
     () => ({
@@ -118,6 +56,8 @@ function GasStationLayer({ position, canVote, onReportGas }) {
     [],
   )
 
+  if (!visible) return null
+
   const handleChoose = async (stationId, status) => {
     setBusyStationId(stationId)
     try {
@@ -127,8 +67,8 @@ function GasStationLayer({ position, canVote, onReportGas }) {
     }
   }
 
-  return allStations.map((station) => {
-    const record = stationStatuses[station.id]
+  return stations.map((station) => {
+    const record = stationStatuses?.[station.id]
     const status = record?.status ?? 'default'
     const hasGasCount = record?.hasGasCount ?? 0
     const noGasCount = record?.noGasCount ?? 0
@@ -141,6 +81,8 @@ function GasStationLayer({ position, canVote, onReportGas }) {
         ) * 1000
       : null
 
+    const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`
+
     return (
       <Marker
         key={station.id}
@@ -148,7 +90,16 @@ function GasStationLayer({ position, canVote, onReportGas }) {
         icon={icons[status] ?? icons.default}
       >
         <Popup>
-          <span className="block text-sm font-semibold">{station.name}</span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="block text-sm font-semibold">{station.name}</span>
+            {station.rating && (
+              <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-400/20 px-2 py-0.5 font-mono text-[11px] font-bold text-amber-600 dark:text-amber-300">
+                <Star size={11} fill="currentColor" aria-hidden="true" />
+                {station.rating.toFixed(1)}
+                {station.reviews ? ` (${station.reviews})` : ''}
+              </span>
+            )}
+          </div>
           <span className="mt-0.5 block text-xs opacity-75">
             {station.area}
           </span>
@@ -196,6 +147,16 @@ function GasStationLayer({ position, canVote, onReportGas }) {
               {t('station.noGas')}
             </button>
           </span>
+
+          <a
+            href={directionsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 flex min-h-9 w-full items-center justify-center gap-1.5 rounded-full bg-sky-600 px-3 text-xs font-semibold !text-white no-underline transition-opacity hover:opacity-90"
+          >
+            <span>{t('station.directions')}</span>
+            <ExternalLink size={13} strokeWidth={2.2} aria-hidden="true" />
+          </a>
 
           {!canVote && (
             <span className="mt-1.5 block text-[11px] opacity-70">

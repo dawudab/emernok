@@ -10,8 +10,17 @@ export function getCurrentPosition() {
 
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => resolve({ lat: coords.latitude, lng: coords.longitude }),
-      reject,
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+      () => {
+        // Fallback to standard-accuracy positioning if high-accuracy GPS times
+        // out or is unavailable on desktop/indoors.
+        navigator.geolocation.getCurrentPosition(
+          ({ coords }) =>
+            resolve({ lat: coords.latitude, lng: coords.longitude }),
+          reject,
+          { enableHighAccuracy: false, timeout: 6000, maximumAge: 120000 },
+        )
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 },
     )
   })
 }

@@ -1,27 +1,31 @@
-import { useEffect, useMemo, useState } from 'react'
-import { THEME_COLORS, ThemeContext, themeForDate } from './useTheme'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { THEME_COLORS, ThemeContext } from './useTheme'
 
-// Checking every minute is enough to flip within a minute of 18:00 or 06:00
-// without keeping a long timer that a suspended phone would never fire.
-const TICK_MS = 60 * 1000
+const STORAGE_KEY = 'emernok:theme'
+
+function initialTheme() {
+  try {
+    const saved = window.localStorage.getItem(STORAGE_KEY)
+    if (saved === 'light' || saved === 'dark') return saved
+  } catch {
+    // Ignore storage errors in restricted browsing contexts.
+  }
+  return 'light'
+}
 
 function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => themeForDate())
+  const [theme, setTheme] = useState(initialTheme)
 
-  useEffect(() => {
-    const sync = () => setTheme(themeForDate())
-
-    const interval = setInterval(sync, TICK_MS)
-    // A phone that slept through dusk resumes on a stale theme, so re-check
-    // whenever the tab becomes visible again.
-    document.addEventListener('visibilitychange', sync)
-    window.addEventListener('focus', sync)
-
-    return () => {
-      clearInterval(interval)
-      document.removeEventListener('visibilitychange', sync)
-      window.removeEventListener('focus', sync)
-    }
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark'
+      try {
+        window.localStorage.setItem(STORAGE_KEY, next)
+      } catch {
+        // Ignore storage errors.
+      }
+      return next
+    })
   }, [])
 
   useEffect(() => {
@@ -33,8 +37,8 @@ function ThemeProvider({ children }) {
   }, [theme])
 
   const value = useMemo(
-    () => ({ theme, isDark: theme === 'dark' }),
-    [theme],
+    () => ({ theme, isDark: theme === 'dark', toggleTheme }),
+    [theme, toggleTheme],
   )
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { NOUAKCHOTT_CENTER } from '../constants'
 import {
   GEOLOCATION_SUPPORTED,
   getCurrentPosition,
@@ -6,58 +7,81 @@ import {
   statusFromError,
 } from '../utils/geolocation'
 
+const FALLBACK_POSITION = {
+  lat: NOUAKCHOTT_CENTER[0],
+  lng: NOUAKCHOTT_CENTER[1],
+}
+
 /**
- * Asks for location the moment the app opens, before and regardless of any
- * sign-in, because every other feature reads better when the map is already
- * centred on you.
- *
- * Status is one of: locating | ready | denied | timeout | unavailable |
- * unsupported. They are kept apart so the UI can offer advice that actually
- * applies — a browser-level denial cannot be re-prompted from JavaScript, only
- * reset by the user in site settings.
+ * Continuously tracks the user's current position so all reports and community
+ * messages are automatically anchored to where the user currently is without
+ * needing to tap the map first.
  */
 export function useGeolocation() {
   const [state, setState] = useState({
-    position: null,
-    status: GEOLOCATION_SUPPORTED ? 'locating' : 'unsupported',
+    position: FALLBACK_POSITION,
+    hasHardwareFix: false,
+    status: GEOLOCATION_SUPPORTED ? 'locating' : 'ready',
     permission: null,
   })
 
   const locate = useCallback(async () => {
     if (!GEOLOCATION_SUPPORTED) {
-      setState((previous) => ({ ...previous, status: 'unsupported' }))
-      return null
+      setState((previous) => ({
+        ...previous,
+        position: previous.position ?? FALLBACK_POSITION,
+        status: 'ready',
+      }))
+      return FALLBACK_POSITION
     }
-
-    setState((previous) =>
-      previous.status === 'locating'
-        ? previous
-        : { ...previous, status: 'locating' },
-    )
 
     try {
       const coords = await getCurrentPosition()
       setState((previous) => ({
         ...previous,
         position: coords,
+        hasHardwareFix: true,
         status: 'ready',
       }))
       return coords
     } catch (error) {
-      setState((previous) => ({
-        ...previous,
-        position: null,
-        status: statusFromError(error),
-      }))
-      return null
+      let currentPos = FALLBACK_POSITION
+      setState((previous) => {
+        currentPos = previous.position ?? FALLBACK_POSITION
+        return {
+          ...previous,
+          position: currentPos,
+          status: statusFromError(error),
+        }
+      })
+      return currentPos
     }
   }, [])
 
   useEffect(() => {
-    // The linter cannot see that every setState here runs after an await.
-    // Geolocation is an external system, which is what effects are for.
     // oxlint-disable-next-line react/set-state-in-effect
     locate()
+
+    if (!GEOLOCATION_SUPPORTED || !navigator.geolocation.watchPosition) {
+      return undefined
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      ({ coords }) => {
+        setState((previous) => ({
+          ...previous,
+          position: { lat: coords.latitude, lng: coords.longitude },
+          hasHardwareFix: true,
+          status: 'ready',
+        }))
+      },
+      () => {
+        // Keep last known or default Nouakchott position on watch errors.
+      },
+      { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 },
+    )
+
+    return () => navigator.geolocation.clearWatch(watchId)
   }, [locate])
 
   useEffect(() => {
@@ -70,8 +94,6 @@ export function useGeolocation() {
         ...previous,
         permission: permissionStatus.state,
       }))
-      // Granting permission in site settings fires this instead of a prompt,
-      // so without it the map would stay stuck until a manual reload.
       if (permissionStatus.state === 'granted') locate()
     }
 
@@ -89,7 +111,8 @@ export function useGeolocation() {
   }, [locate])
 
   return {
-    position: state.position,
+    position: state.position ?? FALLBACK_POSITION,
+    hasHardwareFix: state.hasHardwareFix,
     status: state.status,
     permission: state.permission,
     locate,

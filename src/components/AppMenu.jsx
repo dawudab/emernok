@@ -1,9 +1,10 @@
-import { Menu } from 'lucide-react'
+import { Menu, Moon, Sun } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { COMMUNITY_RADIUS_KM } from '../constants'
 import { useAuth } from '../context/useAuth'
 import { LANGUAGES, useI18n } from '../i18n/useI18n'
 import { signOut } from '../services/auth'
+import { useTheme } from '../theme/useTheme'
 import InstallButton from './InstallButton'
 import { MENU_ICONS } from './icons'
 
@@ -48,6 +49,7 @@ function AppMenu({
 }) {
   const { canWrite, isAnonymous, identityLabel } = useAuth()
   const { t, lang, setLang } = useI18n()
+  const { isDark, toggleTheme } = useTheme()
   const [open, setOpen] = useState(false)
   const triggerRef = useRef(null)
   const menuRef = useRef(null)
@@ -96,7 +98,21 @@ function AppMenu({
   }
 
   return (
-    <div className="relative shrink-0">
+    <div className="relative flex shrink-0 items-center gap-1.5">
+      <button
+        type="button"
+        onClick={toggleTheme}
+        aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+        title={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+        className="icon-button size-11 outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-white"
+      >
+        {isDark ? (
+          <Sun size={18} strokeWidth={2} aria-hidden="true" />
+        ) : (
+          <Moon size={18} strokeWidth={2} aria-hidden="true" />
+        )}
+      </button>
+
       <button
         ref={triggerRef}
         type="button"
@@ -123,10 +139,9 @@ function AppMenu({
             ref={menuRef}
             role="dialog"
             aria-label={t('menu.label')}
-            // The header starts 1rem from the top and is ~3.5rem tall. Bounding
-            // the menu to the remaining dynamic viewport makes it scroll on
-            // short phones instead of clipping the controls below it.
-            className="glass-sheet absolute end-0 z-[1095] mt-2 flex max-h-[calc(100dvh-6rem)] w-[min(18rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-3xl"
+            // Leave clearance at the top (header) and bottom (ReportActionBar)
+            // so the menu never collides with the floating report pill.
+            className="glass-sheet absolute top-full end-0 z-[1095] mt-2 flex max-h-[calc(100dvh-10.5rem)] w-[min(18rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-3xl"
           >
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
               <div className="border-b border-black/5 px-4 py-3 dark:border-white/10">

@@ -434,5 +434,44 @@ service cloud.firestore {
 
       allow delete: if false;
     }
+
+    function isValidStationStatus(data, stationId) {
+      return data.keys().hasAll(['stationId', 'status', 'hasGasCount', 'noGasCount', 'updatedBy', 'updatedAt'])
+        && data.keys().hasOnly(['stationId', 'status', 'hasGasCount', 'noGasCount', 'updatedBy', 'updatedAt'])
+        && data.stationId is string && data.stationId.size() > 0 && data.stationId.size() <= 128 && data.stationId == stationId
+        && data.status is string && data.status.size() <= 20 && data.status in ['has_gas', 'no_gas']
+        && data.hasGasCount is int && data.hasGasCount >= 0
+        && data.noGasCount is int && data.noGasCount >= 0
+        && data.updatedBy is string && data.updatedBy.size() > 0 && data.updatedBy.size() <= 128 && data.updatedBy == request.auth.uid
+        && data.updatedAt == request.time;
+    }
+
+    match /stationStatus/{stationId} {
+      allow get, list: if true;
+
+      allow create: if verifiedUser()
+        && isValidId(stationId)
+        && isValidStationStatus(incoming(), stationId)
+        && (
+          (incoming().status == 'has_gas' && incoming().hasGasCount == 1 && incoming().noGasCount == 0)
+          || (incoming().status == 'no_gas' && incoming().noGasCount == 1 && incoming().hasGasCount == 0)
+        );
+
+      allow update: if verifiedUser()
+        && isValidId(stationId)
+        && isValidStationStatus(incoming(), stationId)
+        && incoming().stationId == existing().stationId
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'hasGasCount', 'noGasCount', 'updatedBy', 'updatedAt'])
+        && (
+          (incoming().status == 'has_gas'
+            && incoming().hasGasCount == existing().hasGasCount + 1
+            && incoming().noGasCount == existing().noGasCount)
+          || (incoming().status == 'no_gas'
+            && incoming().noGasCount == existing().noGasCount + 1
+            && incoming().hasGasCount == existing().hasGasCount)
+        );
+
+      allow delete: if false;
+    }
   }
 }

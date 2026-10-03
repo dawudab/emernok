@@ -148,7 +148,7 @@ export default {
   'about.title': 'How it works',
   'about.reportTitle': 'Reporting',
   'about.reportBody':
-    'Tap a button at the bottom and your current location is used. If location is off, tap the map to place the pin yourself.',
+    'Tap a button at the bottom to report an outage right at your current location.',
   'about.expiryTitle': 'Why reports disappear',
   'about.expiryBody':
     'Outages are news, not history. Pins drop off the map after {hours} hours, or sooner once {restored} neighbours confirm service is back.',
@@ -232,4 +232,14 @@ export default {
   'error.dailyLimit':
     'Daily limit of {limit} reports reached. Try again later.',
   'error.alreadyVoted': 'You already responded to this report.',
+
+  'station.available': 'Gas available',
+  'station.shortage': 'Out of gas',
+  'station.hasGas': 'Has Gas',
+  'station.noGas': 'No Gas',
+  'station.tally': '{has} has gas · {out} no gas',
+  'map.myLocation': 'My location',
+  'map.gasStations': 'Toggle gas stations',
+  'map.zoomIn': 'Zoom in',
+  'map.zoomOut': 'Zoom out',
 }

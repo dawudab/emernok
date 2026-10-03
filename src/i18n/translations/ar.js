@@ -143,7 +143,7 @@ export default {
   'about.title': 'كيف يعمل التطبيق',
   'about.reportTitle': 'الإبلاغ',
   'about.reportBody':
-    'المس زرًا في الأسفل ليُستخدم موقعك الحالي. إذا كان الموقع مغلقًا، المس الخريطة لتحديد المكان بنفسك.',
+    'المس زرًا في الأسفل للإبلاغ عن الانقطاع في موقعك الحالي مباشرة.',
   'about.expiryTitle': 'لماذا تختفي البلاغات',
   'about.expiryBody':
     'الانقطاع خبر آني وليس أرشيفًا. تختفي العلامات بعد {hours} ساعة، أو قبل ذلك إذا أكّد {restored} من الجيران عودة الخدمة.',
@@ -223,4 +223,14 @@ export default {
   'error.cooldown': 'يرجى الانتظار {seconds} ثانية قبل إرسال بلاغ آخر.',
   'error.dailyLimit': 'بلغت الحد اليومي ({limit} بلاغًا). حاول لاحقًا.',
   'error.alreadyVoted': 'سبق أن رددت على هذا البلاغ.',
+
+  'station.available': 'الوقود متوفر',
+  'station.shortage': 'الوقود غير متوفر',
+  'station.hasGas': 'يوجد وقود',
+  'station.noGas': 'لا يوجد وقود',
+  'station.tally': '{has} متوفر · {out} غير متوفر',
+  'map.myLocation': 'موقعي',
+  'map.gasStations': 'إظهار/إخفاء محطات الوقود',
+  'map.zoomIn': 'تكبير',
+  'map.zoomOut': 'تصغير',
 }

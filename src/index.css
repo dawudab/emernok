@@ -104,7 +104,11 @@ body {
 }
 
 .dark .leaflet-container {
-  background: #09090b;
+  background: #0b0f17;
+}
+
+.dark .leaflet-tile-pane {
+  filter: invert(100%) hue-rotate(180deg) brightness(90%) contrast(95%) saturate(85%);
 }
 
 /* Attribution has to stay legible and is required by OSM and CARTO. */
@@ -175,4 +179,17 @@ body {
   border: 2px solid rgb(255 255 255 / 0.85);
   color: #ffffff;
   box-shadow: 0 2px 12px rgb(124 58 237 / 0.6);
+}
+
+/* Gas stations use a rounded square badge in sky blue (or amber when a fuel
+   shortage is reported nearby). */
+.gas-station-pin__badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 9px;
+  border: 2px solid rgb(255 255 255 / 0.9);
+  color: #ffffff;
 }

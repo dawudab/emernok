@@ -156,7 +156,7 @@ export default {
   'about.title': 'Comment ça marche',
   'about.reportTitle': 'Signaler',
   'about.reportBody':
-    'Touchez un bouton en bas et votre position actuelle est utilisée. Si la localisation est désactivée, touchez la carte pour placer le repère vous-même.',
+    'Touchez un bouton en bas pour signaler une panne directement à votre position actuelle.',
   'about.expiryTitle': 'Pourquoi les signalements disparaissent',
   'about.expiryBody':
     'Une panne est une information du moment, pas un historique. Les repères disparaissent après {hours} heures, ou plus tôt si {restored} voisins confirment le retour du service.',
@@ -243,4 +243,14 @@ export default {
   'error.dailyLimit':
     'Limite de {limit} signalements par jour atteinte. Réessayez plus tard.',
   'error.alreadyVoted': 'Vous avez déjà répondu à ce signalement.',
+
+  'station.available': 'Carburant disponible',
+  'station.shortage': 'Plus de carburant',
+  'station.hasGas': 'Carburant dispo',
+  'station.noGas': 'Plus de carburant',
+  'station.tally': '{has} disponible · {out} épuisé',
+  'map.myLocation': 'Ma position',
+  'map.gasStations': 'Afficher/masquer les stations-service',
+  'map.zoomIn': 'Zoomer',
+  'map.zoomOut': 'Dézoomer',
 }

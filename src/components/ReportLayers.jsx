@@ -48,7 +48,12 @@ function ReportLayers({ clusters, onVote, canVote, votedIds }) {
     return Object.fromEntries(entries)
   }, [])
 
-  return clusters.map((cluster) => {
+  const powerClusters = useMemo(
+    () => clusters.filter((cluster) => cluster.type === 'power'),
+    [clusters],
+  )
+
+  return powerClusters.map((cluster) => {
     const type = REPORT_TYPES[cluster.type]
     const color = cluster.verified
       ? STATUS_COLORS.verified

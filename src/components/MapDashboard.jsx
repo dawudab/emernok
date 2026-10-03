@@ -12,6 +12,7 @@ import {
   createReport,
   voteOnReport,
 } from '../services/reports'
+import { reportStationGasStatus } from '../services/stations'
 import { buildClusters } from '../utils/clustering'
 import AdminPanel from './AdminPanel'
 import AnnouncementBanner from './AnnouncementBanner'
@@ -19,9 +20,9 @@ import AnnouncementLayer from './AnnouncementLayer'
 import AppMenu from './AppMenu'
 import CommunityPanel from './CommunityPanel'
 import ConnectionIndicator from './ConnectionIndicator'
+import GasStationLayer from './GasStationLayer'
 import InfoPanel from './InfoPanel'
-import LocationGate from './LocationGate'
-import MapClickPicker from './MapClickPicker'
+import MapControls from './MapControls'
 import MapTiles from './MapTiles'
 import OfficialPanel from './OfficialPanel'
 import ProfilePanel from './ProfilePanel'
@@ -42,24 +43,20 @@ function MapDashboard() {
   const { reports, error: reportsError } = useReports()
   const { announcements } = useAnnouncements()
   const { isAdmin } = useOfficial(uid)
-  const {
-    position,
-    status: locationStatus,
-    permission: locationPermission,
-    locate,
-  } = useGeolocation()
+  const { position, locate } = useGeolocation()
   const t = useT()
 
   const [map, setMap] = useState(null)
-  const [locationDismissed, setLocationDismissed] = useState(false)
   const [pendingType, setPendingType] = useState(null)
-  const [awaitingMapClick, setAwaitingMapClick] = useState(false)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState(null)
   const [panel, setPanel] = useState(null)
   const [votedIds, setVotedIds] = useState(() => new Set())
 
-  const clusters = useMemo(() => buildClusters(reports), [reports])
+  const clusters = useMemo(
+    () => buildClusters(reports.filter((r) => r.type === 'power')),
+    [reports],
+  )
   const verifiedCount = clusters.filter((cluster) => cluster.verified).length
 
   // Service errors carry a translation key; anything else is a raw SDK message.
@@ -81,6 +78,7 @@ function MapDashboard() {
       setBusy(true)
       try {
         await createReport({ uid, type, lat, lng })
+        map?.flyTo([lat, lng], Math.max(map.getZoom(), DEFAULT_ZOOM))
         setNotice({
           tone: 'success',
           text: t('notice.reported', { type: t(REPORT_TYPES[type].shortKey) }),
@@ -95,45 +93,30 @@ function MapDashboard() {
         })
       } finally {
         setPendingType(null)
-        setAwaitingMapClick(false)
         setBusy(false)
       }
     },
-    [describe, t, uid],
+    [describe, map, t, uid],
   )
 
+  // Always post directly at the user's current location without requiring a
+  // manual tap on the map.
   const handleReport = useCallback(
-    async (type) => {
+    async (type = 'power') => {
       if (!canWrite) {
         requireSignIn()
         return
       }
+      if (busy) return
 
       setPendingType(type)
-      setAwaitingMapClick(false)
-
-      // Location was requested on load, so usually we already have it.
-      const coords = position ?? (await locate())
-      if (coords) {
-        await submit(type, coords)
-        return
+      const coords = position ?? (await locate()) ?? {
+        lat: NOUAKCHOTT_CENTER[0],
+        lng: NOUAKCHOTT_CENTER[1],
       }
-
-      setAwaitingMapClick(true)
-      setNotice({
-        tone: 'info',
-        text: t('notice.tapMap', { type: t(REPORT_TYPES[type].shortKey) }),
-      })
+      await submit(type, coords)
     },
-    [canWrite, locate, position, requireSignIn, submit, t],
-  )
-
-  const handleMapPick = useCallback(
-    ({ lat, lng }) => {
-      if (!pendingType || busy) return
-      submit(pendingType, { lat, lng })
-    },
-    [busy, pendingType, submit],
+    [busy, canWrite, locate, position, requireSignIn, submit],
   )
 
   const handleVote = useCallback(
@@ -156,16 +139,26 @@ function MapDashboard() {
     [canWrite, describe, requireSignIn, t, uid],
   )
 
-  const handleRecenter = useCallback(async () => {
-    const coords = position ?? (await locate())
-    if (coords) map?.flyTo([coords.lat, coords.lng], DEFAULT_ZOOM)
-  }, [locate, map, position])
+  const handleStationReport = useCallback(
+    async (stationId, gasStatus) => {
+      if (!canWrite) {
+        requireSignIn()
+        return
+      }
+      try {
+        await reportStationGasStatus({ stationId, uid, status: gasStatus })
+        setNotice({ tone: 'success', text: t('notice.voteThanks') })
+      } catch (stationError) {
+        setNotice({ tone: 'error', text: describe(stationError) })
+      }
+    },
+    [canWrite, describe, requireSignIn, t, uid],
+  )
 
-  const cancel = () => {
-    setPendingType(null)
-    setAwaitingMapClick(false)
-    setNotice(null)
-  }
+  const handleRecenter = useCallback(async () => {
+    const coords = (await locate()) ?? position
+    if (coords) map?.flyTo([coords.lat, coords.lng], 15)
+  }, [locate, map, position])
 
   return (
     <div className="relative h-dvh w-full overflow-hidden">
@@ -173,12 +166,20 @@ function MapDashboard() {
         <MapContainer
           center={NOUAKCHOTT_CENTER}
           zoom={DEFAULT_ZOOM}
-          scrollWheelZoom={false}
+          scrollWheelZoom={true}
+          doubleClickZoom={true}
+          touchZoom={true}
+          dragging={true}
           zoomControl={false}
           ref={setMap}
           className="h-full w-full"
         >
           <MapTiles />
+          <GasStationLayer
+            position={position}
+            canVote={canWrite}
+            onReportGas={handleStationReport}
+          />
           <AnnouncementLayer announcements={announcements} />
           <ReportLayers
             clusters={clusters}
@@ -187,12 +188,11 @@ function MapDashboard() {
             votedIds={votedIds}
           />
           <RecenterMap position={position} />
-          {awaitingMapClick && <MapClickPicker onPick={handleMapPick} />}
         </MapContainer>
       </div>
 
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-10 space-y-2 p-4">
-        <div className="glass-pill pointer-events-auto flex items-center gap-3 py-2 ps-5 pe-2">
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-30 space-y-2 p-4">
+        <div className="glass-pill relative z-30 pointer-events-auto flex items-center gap-3 py-2 ps-5 pe-2">
           <div className="min-w-0 flex-1">
             <h1 className="truncate font-mono text-sm font-semibold tracking-[0.22em] uppercase">
               {t('app.city')}
@@ -210,7 +210,7 @@ function MapDashboard() {
             onOpenOfficial={() => setPanel('official')}
             onOpenAdmin={() => setPanel('admin')}
             onRecenter={handleRecenter}
-            canRecenter={locationStatus !== 'unsupported'}
+            canRecenter={true}
             isAdmin={isAdmin}
           />
         </div>
@@ -219,15 +219,6 @@ function MapDashboard() {
           announcements={announcements}
           onFocus={(item) => map?.flyTo([item.lat, item.lng], DEFAULT_ZOOM)}
         />
-
-        {!locationDismissed && (
-          <LocationGate
-            status={locationStatus}
-            permission={locationPermission}
-            onRetry={locate}
-            onDismiss={() => setLocationDismissed(true)}
-          />
-        )}
 
         {emailLinkStatus === 'completing' && (
           <div className="glass pointer-events-auto px-4 py-3 text-sm font-medium">
@@ -251,24 +242,14 @@ function MapDashboard() {
             className={`glass pointer-events-auto flex items-center gap-3 px-4 py-3 text-sm font-medium ${NOTICE_TONES[notice.tone]}`}
           >
             <span className="flex-1">{notice.text}</span>
-            {awaitingMapClick ? (
-              <button
-                type="button"
-                onClick={cancel}
-                className="rounded-full bg-black/10 px-3 py-1 text-xs font-semibold dark:bg-white/15"
-              >
-                {t('common.cancel')}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setNotice(null)}
-                aria-label={t('common.dismiss')}
-                className="rounded-full bg-black/10 p-1.5 dark:bg-white/15"
-              >
-                <CloseIcon size={14} strokeWidth={2.5} aria-hidden="true" />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setNotice(null)}
+              aria-label={t('common.dismiss')}
+              className="rounded-full bg-black/10 p-1.5 dark:bg-white/15"
+            >
+              <CloseIcon size={14} strokeWidth={2.5} aria-hidden="true" />
+            </button>
           </div>
         )}
 
@@ -278,6 +259,8 @@ function MapDashboard() {
           </div>
         )}
       </header>
+
+      <MapControls map={map} onRecenter={handleRecenter} />
 
       <ReportActionBar
         onReport={handleReport}

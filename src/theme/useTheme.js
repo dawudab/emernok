@@ -15,6 +15,7 @@ export function themeForDate(date = new Date()) {
 export const ThemeContext = createContext({
   theme: 'light',
   isDark: false,
+  toggleTheme: () => {},
 })
 
 export function useTheme() {

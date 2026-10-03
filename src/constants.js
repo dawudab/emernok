@@ -72,7 +72,7 @@ export function accentFor(type, isDark) {
   return isDark ? type.accent : (type.accentLight ?? type.accent)
 }
 
-export const REPORT_TYPE_LIST = Object.values(REPORT_TYPES)
+export const REPORT_TYPE_LIST = [REPORT_TYPES.power]
 
 // Nouakchott's moughataas. Centres are approximate and chosen to anchor an
 // official notice to a neighbourhood, not to draw administrative boundaries —
@@ -151,3 +151,201 @@ export const ANNOUNCEMENT_MAX_HOURS = 48
 export const ANNOUNCEMENT_DEFAULT_HOURS = 4
 export const MAX_ANNOUNCEMENT_LENGTH = 500
 export const OFFICIAL_COLOR = '#8b5cf6'
+
+// Major service stations across Nouakchott moughataas, supplemented at runtime
+// by OpenStreetMap amenity=fuel nodes when online.
+export const GAS_STATIONS = [
+  {
+    id: 'total-tevragh-zeina',
+    name: 'TotalEnergies Tevragh Zeina',
+    brand: 'TotalEnergies',
+    area: 'Tevragh Zeina · Av. Charles de Gaulle',
+    lat: 18.1012,
+    lng: -15.9785,
+  },
+  {
+    id: 'star-oil-ambassade',
+    name: 'Star Oil Ambassades',
+    brand: 'Star Oil',
+    area: 'Tevragh Zeina · Quartier des Ambassades',
+    lat: 18.1068,
+    lng: -15.9892,
+  },
+  {
+    id: 'vivo-shell-clinique',
+    name: 'Shell / Vivo Energy Clinique',
+    brand: 'Shell',
+    area: 'Tevragh Zeina · Carrefour Clinique',
+    lat: 18.0895,
+    lng: -15.9764,
+  },
+  {
+    id: 'wataniya-stade',
+    name: 'Wataniya Stade Olympique',
+    brand: 'Wataniya',
+    area: 'Tevragh Zeina · Stade Olympique',
+    lat: 18.0964,
+    lng: -15.9712,
+  },
+  {
+    id: 'total-bmd',
+    name: 'TotalEnergies Carrefour BMD',
+    brand: 'TotalEnergies',
+    area: 'Ksar · Av. Gamal Abdel Nasser',
+    lat: 18.0858,
+    lng: -15.9698,
+  },
+  {
+    id: 'star-oil-ksar',
+    name: 'Star Oil Ksar',
+    brand: 'Star Oil',
+    area: 'Ksar · Route d’Atar',
+    lat: 18.0915,
+    lng: -15.9562,
+  },
+  {
+    id: 'shell-madrid',
+    name: 'Shell Carrefour Madrid',
+    brand: 'Shell',
+    area: 'Arafat / Ksar · Carrefour Madrid',
+    lat: 18.0762,
+    lng: -15.9554,
+  },
+  {
+    id: 'total-madrid',
+    name: 'TotalEnergies Madrid',
+    brand: 'TotalEnergies',
+    area: 'Carrefour Madrid',
+    lat: 18.0748,
+    lng: -15.9568,
+  },
+  {
+    id: 'maurioil-sebkha',
+    name: 'MauriOil Sebkha',
+    brand: 'MauriOil',
+    area: 'Sebkha · Marché Capitale',
+    lat: 18.0782,
+    lng: -15.9845,
+  },
+  {
+    id: 'wataniya-cinquieme',
+    name: 'Wataniya Cinquième',
+    brand: 'Wataniya',
+    area: 'Sebkha · 5ème Arrondissement',
+    lat: 18.0695,
+    lng: -15.9818,
+  },
+  {
+    id: 'total-el-mina',
+    name: 'TotalEnergies El Mina',
+    brand: 'TotalEnergies',
+    area: 'El Mina · Route du Port',
+    lat: 18.0574,
+    lng: -15.9715,
+  },
+  {
+    id: 'star-oil-port',
+    name: 'Star Oil Port de l’Amitié',
+    brand: 'Star Oil',
+    area: 'El Mina · Zone Portuaire',
+    lat: 18.0442,
+    lng: -15.9885,
+  },
+  {
+    id: 'somap-robinet',
+    name: 'Somap Premier Robinet',
+    brand: 'Somap',
+    area: 'El Mina · Premier Robinet',
+    lat: 18.0612,
+    lng: -15.9638,
+  },
+  {
+    id: 'total-arafat',
+    name: 'TotalEnergies Arafat',
+    brand: 'TotalEnergies',
+    area: 'Arafat · Route de Rosso',
+    lat: 18.0535,
+    lng: -15.9512,
+  },
+  {
+    id: 'star-oil-poteau-3',
+    name: 'Star Oil Poteau 3',
+    brand: 'Star Oil',
+    area: 'Arafat · Poteau 3',
+    lat: 18.0468,
+    lng: -15.9445,
+  },
+  {
+    id: 'wataniya-daaya',
+    name: 'Wataniya Carrefour الداية',
+    brand: 'Wataniya',
+    area: 'Arafat · الداية',
+    lat: 18.0395,
+    lng: -15.9382,
+  },
+  {
+    id: 'total-pk7',
+    name: 'TotalEnergies PK 7',
+    brand: 'TotalEnergies',
+    area: 'Riyad · PK 7 Route de Rosso',
+    lat: 18.0185,
+    lng: -15.9428,
+  },
+  {
+    id: 'star-oil-riyad',
+    name: 'Star Oil PK 10 Riyad',
+    brand: 'Star Oil',
+    area: 'Riyad · PK 10',
+    lat: 17.9945,
+    lng: -15.9342,
+  },
+  {
+    id: 'total-teyarett',
+    name: 'TotalEnergies Teyarett',
+    brand: 'TotalEnergies',
+    area: 'Teyarett · Route de Nouadhibou',
+    lat: 18.1245,
+    lng: -15.9685,
+  },
+  {
+    id: 'shell-carrefour-aziz',
+    name: 'Shell Carrefour Teyarett',
+    brand: 'Shell',
+    area: 'Teyarett · Av. de l’Unité Nationale',
+    lat: 18.1338,
+    lng: -15.9612,
+  },
+  {
+    id: 'star-oil-dar-naim',
+    name: 'Star Oil Dar Naim',
+    brand: 'Star Oil',
+    area: 'Dar Naim · Carrefour Tensoueilim',
+    lat: 18.1165,
+    lng: -15.9355,
+  },
+  {
+    id: 'wataniya-dar-naim',
+    name: 'Wataniya Dar Naim',
+    brand: 'Wataniya',
+    area: 'Dar Naim · Route d’Akjoujt',
+    lat: 18.1252,
+    lng: -15.9218,
+  },
+  {
+    id: 'total-toujounine',
+    name: 'TotalEnergies Toujounine',
+    brand: 'TotalEnergies',
+    area: 'Toujounine · Route de l’Espoir',
+    lat: 18.0842,
+    lng: -15.9085,
+  },
+  {
+    id: 'star-oil-hay-saken',
+    name: 'Star Oil Route de l’Espoir',
+    brand: 'Star Oil',
+    area: 'Toujounine · Carrefour Nancy',
+    lat: 18.0785,
+    lng: -15.8862,
+  },
+]
+

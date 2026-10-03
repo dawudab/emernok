@@ -357,6 +357,41 @@
         }
       },
       "required": ["uid", "lastMessageAt", "dailyCount", "dayStartedAt"]
+    },
+    "StationStatus": {
+      "title": "StationStatus",
+      "description": "Crowd-reported fuel availability at a gas station",
+      "type": "object",
+      "properties": {
+        "stationId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["has_gas", "no_gas"],
+          "maxLength": 20
+        },
+        "hasGasCount": {
+          "type": "number"
+        },
+        "noGasCount": {
+          "type": "number"
+        },
+        "updatedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["stationId", "status", "hasGasCount", "noGasCount", "updatedBy", "updatedAt"]
     }
   },
   "firestore": {
@@ -399,6 +434,10 @@
     "/chatStats/{userId}": {
       "schema": "ChatStats",
       "description": "Chat rate-limiting counters"
+    },
+    "/stationStatus/{stationId}": {
+      "schema": "StationStatus",
+      "description": "Live gas station availability status"
     }
   }
 }

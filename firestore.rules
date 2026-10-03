@@ -1,16 +1,23 @@
 rules_version = '2';
 
-// Reading is public; every write requires a verified phone number.
+// Reading is public; every write requires a confirmed phone number or a
+// verified email address.
 // Anti-spam limits must stay in sync with src/constants.js.
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Anonymous sessions carry no phone_number claim, so this is what gates
-    // all writes. Checking for the key first avoids erroring on anon tokens.
-    function phoneUser() {
+    // Anonymous sessions carry neither claim, so this is what gates all writes.
+    // Checking for each key first avoids erroring on tokens that lack it.
+    // An unverified email is deliberately not enough: otherwise anyone could
+    // type a stranger's address and start writing.
+    function verifiedUser() {
       return request.auth != null
-        && 'phone_number' in request.auth.token
-        && request.auth.token.phone_number != '';
+        && (
+          ('phone_number' in request.auth.token
+            && request.auth.token.phone_number != '')
+          || ('email_verified' in request.auth.token
+            && request.auth.token.email_verified == true)
+        );
     }
 
     function counterPath(name) {
@@ -56,7 +63,7 @@ service cloud.firestore {
       // Outage data is public so anyone can see what is down.
       allow read: if true;
 
-      allow create: if phoneUser()
+      allow create: if verifiedUser()
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.type in ['power', 'water', 'fuel']
         && request.resource.data.lat is number
@@ -78,7 +85,7 @@ service cloud.firestore {
       // The only permitted update is a vote tally bumped by exactly one, and
       // only when the matching vote document is created in the same commit by
       // a user who has not voted on this report before.
-      allow update: if phoneUser()
+      allow update: if verifiedUser()
         && !exists(votePath(reportId))
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['stillOutCount', 'restoredCount'])
@@ -96,7 +103,7 @@ service cloud.firestore {
       match /votes/{voterId} {
         allow read: if true;
 
-        allow create: if phoneUser()
+        allow create: if verifiedUser()
           && request.auth.uid == voterId
           && request.resource.data.uid == voterId
           && request.resource.data.value in ['still_out', 'restored']
@@ -121,13 +128,13 @@ service cloud.firestore {
       // Only the owner can see or touch their own counter.
       allow read: if request.auth != null && request.auth.uid == userId;
 
-      allow create: if phoneUser()
+      allow create: if verifiedUser()
         && request.auth.uid == userId
         && wellFormed()
         && request.resource.data.dailyCount == 1
         && request.resource.data.dayStartedAt == request.time;
 
-      allow update: if phoneUser()
+      allow update: if verifiedUser()
         && request.auth.uid == userId
         && wellFormed()
         // Either the 24h window rolled over (counter resets) or it ticks up by
@@ -172,7 +179,7 @@ service cloud.firestore {
     match /messages/{messageId} {
       allow read: if true;
 
-      allow create: if phoneUser()
+      allow create: if verifiedUser()
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.text is string
         && request.resource.data.text.size() > 0
@@ -203,13 +210,13 @@ service cloud.firestore {
 
       allow read: if request.auth != null && request.auth.uid == userId;
 
-      allow create: if phoneUser()
+      allow create: if verifiedUser()
         && request.auth.uid == userId
         && wellFormedChat()
         && request.resource.data.dailyCount == 1
         && request.resource.data.dayStartedAt == request.time;
 
-      allow update: if phoneUser()
+      allow update: if verifiedUser()
         && request.auth.uid == userId
         && wellFormedChat()
         && (

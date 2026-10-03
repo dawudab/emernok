@@ -1,6 +1,12 @@
 import { REPORT_TYPE_LIST } from '../constants'
 
-function ReportActionBar({ onReport, pendingType, disabled, locked }) {
+function ReportActionBar({
+  onReport,
+  pendingType,
+  disabled,
+  locked,
+  lockedReason,
+}) {
   return (
     <nav
       aria-label="Report an outage"
@@ -8,7 +14,7 @@ function ReportActionBar({ onReport, pendingType, disabled, locked }) {
     >
       {locked && (
         <p className="px-3 pt-2 text-center text-xs font-medium text-slate-500">
-          Sign in with your phone number to report an outage
+          {lockedReason}
         </p>
       )}
       <ul className="mx-auto flex max-w-xl gap-2 p-3">

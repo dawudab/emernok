@@ -18,7 +18,7 @@ function formatDistance(metres) {
 }
 
 function CommunityPanel({ onClose, position, onRequestSignIn }) {
-  const { uid, isAnonymous } = useAuth()
+  const { uid, canWrite, isAnonymous } = useAuth()
   const { messages, error } = useNearbyMessages(position)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
@@ -112,13 +112,13 @@ function CommunityPanel({ onClose, position, onRequestSignIn }) {
         </div>
 
         <div className="border-t border-slate-200 p-3">
-          {isAnonymous ? (
+          {!canWrite ? (
             <button
               type="button"
               onClick={onRequestSignIn}
               className="min-h-12 w-full rounded-xl bg-slate-900 font-semibold text-white"
             >
-              Sign in with phone to post
+              {isAnonymous ? 'Sign in to post' : 'Verify your email to post'}
             </button>
           ) : (
             <form onSubmit={submit} className="flex items-end gap-2">

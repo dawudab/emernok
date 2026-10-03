@@ -115,7 +115,7 @@ function ReportLayers({ clusters, onVote, canVote, votedIds }) {
             )}
             {!canVote && (
               <span className="mt-1 block text-[11px] text-slate-500">
-                Sign in with your phone number to respond.
+                Sign in with email or phone to respond.
               </span>
             )}
           </Popup>

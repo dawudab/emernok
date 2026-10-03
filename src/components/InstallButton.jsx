@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { useInstallPrompt } from '../hooks/useInstallPrompt'
 
-function InstallButton() {
+const DEFAULT_CLASS =
+  'shrink-0 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white active:bg-slate-700'
+
+function InstallButton({ className = DEFAULT_CLASS, label = 'Install App' }) {
   // `available` is only true on iOS or when a prompt event exists, so a click
   // without a prompt event means we're on iOS and show manual steps.
   const { install, canPrompt, available } = useInstallPrompt()
@@ -22,9 +25,9 @@ function InstallButton() {
       <button
         type="button"
         onClick={handleClick}
-        className="shrink-0 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white active:bg-slate-700"
+        className={className}
       >
-        Install App
+        {label}
       </button>
 
       {showIosHelp && (

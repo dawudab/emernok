@@ -11,9 +11,10 @@ import {
   voteOnReport,
 } from '../services/reports'
 import { buildClusters } from '../utils/clustering'
+import AppMenu from './AppMenu'
 import CommunityPanel from './CommunityPanel'
 import ConnectionIndicator from './ConnectionIndicator'
-import InstallButton from './InstallButton'
+import InfoPanel from './InfoPanel'
 import MapClickPicker from './MapClickPicker'
 import ProfilePanel from './ProfilePanel'
 import RecenterMap from './RecenterMap'
@@ -21,28 +22,29 @@ import ReportActionBar from './ReportActionBar'
 import ReportLayers from './ReportLayers'
 
 function MapDashboard() {
-  const { uid, status, isAnonymous } = useAuth()
+  const { uid, status, canWrite, isAnonymous, emailLinkStatus } = useAuth()
   const { reports, error: reportsError } = useReports()
   const { position, status: locationStatus, locate } = useGeolocation()
 
+  const [map, setMap] = useState(null)
   const [pendingType, setPendingType] = useState(null)
   const [awaitingMapClick, setAwaitingMapClick] = useState(false)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState(null)
-  const [showProfile, setShowProfile] = useState(false)
-  const [showCommunity, setShowCommunity] = useState(false)
+  const [panel, setPanel] = useState(null)
   const [votedIds, setVotedIds] = useState(() => new Set())
 
   const clusters = useMemo(() => buildClusters(reports), [reports])
-  const signedInByPhone = status === 'authenticated' && !isAnonymous
 
   const requireSignIn = useCallback(() => {
     setNotice({
       tone: 'info',
-      text: 'Sign in with your phone number to post reports.',
+      text: isAnonymous
+        ? 'Sign in with your email or phone number to post.'
+        : 'Verify your email address to post.',
     })
-    setShowProfile(true)
-  }, [])
+    setPanel('profile')
+  }, [isAnonymous])
 
   const submit = useCallback(
     async (type, { lat, lng }) => {
@@ -73,7 +75,7 @@ function MapDashboard() {
 
   const handleReport = useCallback(
     async (type) => {
-      if (!signedInByPhone) {
+      if (!canWrite) {
         requireSignIn()
         return
       }
@@ -96,7 +98,7 @@ function MapDashboard() {
         ].shortLabel.toLowerCase()} pin.`,
       })
     },
-    [locate, position, requireSignIn, signedInByPhone, submit],
+    [canWrite, locate, position, requireSignIn, submit],
   )
 
   const handleMapPick = useCallback(
@@ -109,7 +111,7 @@ function MapDashboard() {
 
   const handleVote = useCallback(
     async (reportId, value) => {
-      if (!signedInByPhone) {
+      if (!canWrite) {
         requireSignIn()
         return
       }
@@ -124,8 +126,13 @@ function MapDashboard() {
         setNotice({ tone: 'error', text: voteError.message })
       }
     },
-    [requireSignIn, signedInByPhone, uid],
+    [canWrite, requireSignIn, uid],
   )
+
+  const handleRecenter = useCallback(async () => {
+    const coords = position ?? (await locate())
+    if (coords) map?.flyTo([coords.lat, coords.lng], DEFAULT_ZOOM)
+  }, [locate, map, position])
 
   const cancel = () => {
     setPendingType(null)
@@ -140,6 +147,7 @@ function MapDashboard() {
         zoom={DEFAULT_ZOOM}
         scrollWheelZoom={false}
         zoomControl={false}
+        ref={setMap}
         className="h-full w-full"
       >
         <TileLayer
@@ -149,7 +157,7 @@ function MapDashboard() {
         <ReportLayers
           clusters={clusters}
           onVote={handleVote}
-          canVote={signedInByPhone}
+          canVote={canWrite}
           votedIds={votedIds}
         />
         <RecenterMap position={position} />
@@ -167,25 +175,32 @@ function MapDashboard() {
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <ConnectionIndicator />
-            <InstallButton />
-            <button
-              type="button"
-              onClick={() => setShowCommunity(true)}
-              aria-label="Community feed"
-              className="min-h-11 min-w-11 rounded-lg bg-slate-100 text-lg active:bg-slate-200"
-            >
-              💬
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowProfile(true)}
-              aria-label="Your profile"
-              className="min-h-11 min-w-11 rounded-lg bg-slate-100 text-lg active:bg-slate-200"
-            >
-              👤
-            </button>
+            <AppMenu
+              onOpenCommunity={() => setPanel('community')}
+              onOpenProfile={() => setPanel('profile')}
+              onOpenLegend={() => setPanel('legend')}
+              onOpenAbout={() => setPanel('about')}
+              onRecenter={handleRecenter}
+              canRecenter={locationStatus !== 'denied'}
+            />
           </div>
         </div>
+
+        {emailLinkStatus === 'completing' && (
+          <div className="pointer-events-auto rounded-xl bg-slate-900/90 px-4 py-3 text-sm font-medium text-white shadow-lg">
+            Finishing your sign-in…
+          </div>
+        )}
+
+        {(emailLinkStatus === 'needs-email' || emailLinkStatus === 'error') && (
+          <button
+            type="button"
+            onClick={() => setPanel('profile')}
+            className="pointer-events-auto w-full rounded-xl bg-amber-500 px-4 py-3 text-left text-sm font-medium text-amber-950 shadow-lg"
+          >
+            Your sign-in link needs one more step. Tap to finish.
+          </button>
+        )}
 
         {notice && (
           <div
@@ -238,19 +253,24 @@ function MapDashboard() {
         onReport={handleReport}
         pendingType={pendingType}
         disabled={busy || status !== 'authenticated'}
-        locked={!signedInByPhone}
+        locked={!canWrite}
+        lockedReason={
+          isAnonymous
+            ? 'Sign in with email or phone to report an outage'
+            : 'Verify your email address to report an outage'
+        }
       />
 
-      {showProfile && <ProfilePanel onClose={() => setShowProfile(false)} />}
-      {showCommunity && (
+      {panel === 'profile' && <ProfilePanel onClose={() => setPanel(null)} />}
+      {panel === 'community' && (
         <CommunityPanel
           position={position}
-          onClose={() => setShowCommunity(false)}
-          onRequestSignIn={() => {
-            setShowCommunity(false)
-            setShowProfile(true)
-          }}
+          onClose={() => setPanel(null)}
+          onRequestSignIn={() => setPanel('profile')}
         />
+      )}
+      {(panel === 'legend' || panel === 'about') && (
+        <InfoPanel view={panel} onClose={() => setPanel(null)} />
       )}
     </div>
   )

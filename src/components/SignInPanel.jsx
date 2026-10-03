@@ -16,12 +16,16 @@ function SignInPanel({ onDone }) {
   const active = forced ? 'email' : method
 
   return (
-    <div className="rounded-xl bg-slate-50 p-4">
-      <h3 className="text-sm font-bold text-slate-900">{t('signIn.title')}</h3>
-      <p className="mt-0.5 text-xs text-slate-500">{t('signIn.subtitle')}</p>
+    <div className="glass-inset p-4">
+      <h3 className="font-mono text-[10px] font-semibold tracking-[0.18em] uppercase">
+        {t('signIn.title')}
+      </h3>
+      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+        {t('signIn.subtitle')}
+      </p>
 
       {!forced && (
-        <div className="mt-3 flex gap-2">
+        <div className="mt-3 flex gap-1 rounded-full bg-black/5 p-1 dark:bg-white/10">
           {[
             { id: 'email', label: t('signIn.email') },
             { id: 'phone', label: t('signIn.phone') },
@@ -31,10 +35,10 @@ function SignInPanel({ onDone }) {
               type="button"
               aria-pressed={active === option.id}
               onClick={() => setMethod(option.id)}
-              className={`min-h-10 flex-1 rounded-xl border text-sm font-semibold ${
+              className={`min-h-10 flex-1 rounded-full text-sm font-semibold transition-all duration-300 ${
                 active === option.id
-                  ? 'border-slate-900 bg-slate-900 text-white'
-                  : 'border-slate-300 text-slate-700'
+                  ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
+                  : 'text-zinc-600 dark:text-zinc-300'
               }`}
             >
               {option.label}

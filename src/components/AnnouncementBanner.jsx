@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { OFFICIAL_COLOR } from '../constants'
 import { useT } from '../i18n/useI18n'
+import { CloseIcon, MegaphoneIcon, NavigationIcon } from './icons'
 
 /**
  * Official notices earn a banner rather than just a pin: the point of a
@@ -18,23 +19,33 @@ function AnnouncementBanner({ announcements, onFocus }) {
 
   return (
     <div
-      className="pointer-events-auto rounded-xl px-4 py-3 text-white shadow-lg"
-      style={{ background: OFFICIAL_COLOR }}
+      className="glass pointer-events-auto px-4 py-3"
+      style={{
+        borderColor: `${OFFICIAL_COLOR}66`,
+        boxShadow: `0 0 24px ${OFFICIAL_COLOR}33`,
+      }}
     >
       <div className="flex items-start gap-3">
-        <span aria-hidden="true" className="text-lg leading-none">
-          📢
-        </span>
+        <MegaphoneIcon
+          size={18}
+          strokeWidth={2}
+          aria-hidden="true"
+          className="mt-0.5 shrink-0"
+          style={{ color: OFFICIAL_COLOR }}
+        />
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-bold uppercase tracking-wide opacity-90">
+          <p
+            className="font-mono text-[10px] font-semibold tracking-[0.2em] uppercase"
+            style={{ color: OFFICIAL_COLOR }}
+          >
             {t('banner.official')}
           </p>
-          <p className="text-sm font-semibold">
+          <p className="mt-0.5 text-sm font-semibold">
             {t('banner.from', { org: item.org, area: item.area })}
           </p>
           <p className="mt-0.5 text-sm">{item.text}</p>
           {item.expiresAt?.toDate && (
-            <p className="mt-1 text-xs opacity-90">
+            <p className="tabular mt-1 text-xs text-zinc-600 dark:text-zinc-400">
               {t('banner.until', {
                 time: item.expiresAt.toDate().toLocaleTimeString([], {
                   hour: '2-digit',
@@ -47,12 +58,15 @@ function AnnouncementBanner({ announcements, onFocus }) {
             <button
               type="button"
               onClick={() => onFocus(item)}
-              className="rounded-lg bg-white/20 px-3 py-1 text-xs font-semibold"
+              className="flex items-center gap-1.5 rounded-full bg-black/5 px-3 py-1.5 text-xs font-semibold dark:bg-white/10"
             >
+              <NavigationIcon size={13} strokeWidth={2.2} aria-hidden="true" />
               {t('menu.recenter')}
             </button>
             {visible.length > 1 && (
-              <span className="text-xs opacity-90">+{visible.length - 1}</span>
+              <span className="tabular text-xs text-zinc-500 dark:text-zinc-400">
+                +{visible.length - 1}
+              </span>
             )}
           </div>
         </div>
@@ -62,9 +76,9 @@ function AnnouncementBanner({ announcements, onFocus }) {
           onClick={() =>
             setDismissed((previous) => new Set(previous).add(item.id))
           }
-          className="rounded-lg bg-white/20 px-2 py-1"
+          className="rounded-full bg-black/5 p-1.5 dark:bg-white/10"
         >
-          ✕
+          <CloseIcon size={14} strokeWidth={2.5} aria-hidden="true" />
         </button>
       </div>
     </div>

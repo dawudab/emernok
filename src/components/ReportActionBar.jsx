@@ -1,6 +1,12 @@
 import { REPORT_TYPE_LIST } from '../constants'
 import { useT } from '../i18n/useI18n'
+import { TYPE_ICONS } from './icons'
 
+/**
+ * A single floating pill rather than three blocks: the map is the subject, and
+ * the controls should read as instruments over it. Colour appears only on the
+ * active control, so the resting state stays monochrome.
+ */
 function ReportActionBar({
   onReport,
   pendingType,
@@ -11,42 +17,58 @@ function ReportActionBar({
   const t = useT()
 
   return (
-    <nav
-      aria-label={t('bar.lockedGuest')}
-      className="absolute inset-x-0 bottom-0 z-[1000] border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(0,0,0,0.12)] backdrop-blur"
-    >
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col items-center gap-2 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
       {locked && (
-        <p className="px-3 pt-2 text-center text-xs font-medium text-slate-500">
+        <p className="glass-pill pointer-events-auto max-w-sm px-4 py-2 text-center text-xs font-medium text-zinc-700 dark:text-zinc-300">
           {lockedReason}
         </p>
       )}
-      <ul className="mx-auto flex max-w-xl gap-2 p-3">
+
+      <nav
+        aria-label={t('bar.label')}
+        className="glass-pill pointer-events-auto flex items-center gap-1 p-1.5"
+      >
         {REPORT_TYPE_LIST.map((action) => {
+          const Icon = TYPE_ICONS[action.iconName]
           const label = t(action.labelKey)
+          const active = pendingType === action.id
+
           return (
-            <li key={action.id} className="flex-1">
-              <button
-                type="button"
-                onClick={() => onReport(action.id)}
-                disabled={disabled}
-                aria-label={label}
-                aria-pressed={pendingType === action.id}
-                className={`flex min-h-16 w-full flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 font-semibold text-white transition focus:outline-none focus-visible:ring-4 focus-visible:ring-slate-900/30 disabled:opacity-50 ${action.button} ${
-                  pendingType === action.id ? 'ring-4 ring-slate-900/40' : ''
-                }`}
-              >
-                <span aria-hidden="true" className="text-2xl leading-none">
-                  {action.icon}
-                </span>
-                <span className="text-center text-sm leading-tight">
-                  {label}
-                </span>
-              </button>
-            </li>
+            <button
+              key={action.id}
+              type="button"
+              onClick={() => onReport(action.id)}
+              disabled={disabled}
+              aria-label={label}
+              title={label}
+              aria-pressed={active}
+              className="group flex size-14 items-center justify-center rounded-full text-zinc-700 outline-none transition-all duration-300 focus-visible:ring-2 focus-visible:ring-zinc-900 disabled:opacity-40 dark:text-zinc-200 dark:focus-visible:ring-white"
+              style={
+                active
+                  ? {
+                      // Lit against a dark chip in both themes: neon yellow and
+                      // bright white simply vanish on light glass otherwise.
+                      background: '#09090b',
+                      boxShadow: `0 0 0 1px ${action.accent}80, 0 0 24px ${action.accent}66`,
+                    }
+                  : undefined
+              }
+            >
+              <Icon
+                size={24}
+                strokeWidth={2}
+                aria-hidden="true"
+                className="transition-all duration-300"
+                style={{
+                  color: active ? action.accent : undefined,
+                  filter: active ? `drop-shadow(0 0 8px ${action.accent})` : undefined,
+                }}
+              />
+            </button>
           )
         })}
-      </ul>
-    </nav>
+      </nav>
+    </div>
   )
 }
 

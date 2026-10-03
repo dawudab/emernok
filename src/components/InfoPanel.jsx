@@ -9,42 +9,58 @@ import {
   STATUS_COLORS,
   VERIFY_MIN_USERS,
   VERIFY_RADIUS_M,
+  accentFor,
 } from '../constants'
 import { useT } from '../i18n/useI18n'
+import { useTheme } from '../theme/useTheme'
+import Sheet from './Sheet'
+import { TYPE_ICONS } from './icons'
 
 function Swatch({ color, opacity }) {
   return (
     <span
       aria-hidden="true"
       className="mt-0.5 size-5 shrink-0 rounded-full border-2"
-      style={{ borderColor: color, background: color, opacity }}
+      style={{
+        borderColor: color,
+        background: color,
+        opacity,
+        boxShadow: `0 0 12px ${color}66`,
+      }}
     />
+  )
+}
+
+function Heading({ children }) {
+  return (
+    <h3 className="font-mono text-[10px] font-semibold tracking-[0.18em] text-zinc-500 uppercase dark:text-zinc-400">
+      {children}
+    </h3>
   )
 }
 
 function Legend() {
   const t = useT()
+  const { isDark } = useTheme()
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <section>
-        <h3 className="text-sm font-bold text-slate-900">
-          {t('legend.colourTitle')}
-        </h3>
-        <p className="mt-0.5 text-xs text-slate-500">
+        <Heading>{t('legend.colourTitle')}</Heading>
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
           {t('legend.colourIntro')}
         </p>
         <ul className="mt-3 space-y-3">
           <li className="flex gap-3">
-            <Swatch color={STATUS_COLORS.unverified} opacity={0.35} />
-            <span className="text-sm text-slate-700">
+            <Swatch color={STATUS_COLORS.unverified} opacity={0.5} />
+            <span className="text-sm">
               <span className="font-semibold">{t('legend.unconfirmed')}</span> —{' '}
               {t('legend.unconfirmedBody', { total: VERIFY_MIN_USERS })}
             </span>
           </li>
           <li className="flex gap-3">
-            <Swatch color={STATUS_COLORS.verified} opacity={0.8} />
-            <span className="text-sm text-slate-700">
+            <Swatch color={STATUS_COLORS.verified} opacity={0.9} />
+            <span className="text-sm">
               <span className="font-semibold">{t('legend.verified')}</span> —{' '}
               {t('legend.verifiedBody', {
                 total: VERIFY_MIN_USERS,
@@ -53,8 +69,8 @@ function Legend() {
             </span>
           </li>
           <li className="flex gap-3">
-            <Swatch color={OFFICIAL_COLOR} opacity={0.8} />
-            <span className="text-sm text-slate-700">
+            <Swatch color={OFFICIAL_COLOR} opacity={0.9} />
+            <span className="text-sm">
               <span className="font-semibold">{t('legend.officialTitle')}</span>{' '}
               — {t('legend.officialBody')}
             </span>
@@ -63,26 +79,28 @@ function Legend() {
       </section>
 
       <section>
-        <h3 className="text-sm font-bold text-slate-900">
-          {t('legend.iconTitle')}
-        </h3>
-        <ul className="mt-3 space-y-2">
-          {REPORT_TYPE_LIST.map((type) => (
-            <li key={type.id} className="flex items-center gap-3 text-sm">
-              <span aria-hidden="true" className="w-5 text-center text-base">
-                {type.icon}
-              </span>
-              <span className="text-slate-700">{t(type.shortKey)}</span>
-            </li>
-          ))}
+        <Heading>{t('legend.iconTitle')}</Heading>
+        <ul className="mt-3 space-y-2.5">
+          {REPORT_TYPE_LIST.map((type) => {
+            const Icon = TYPE_ICONS[type.iconName]
+            return (
+              <li key={type.id} className="flex items-center gap-3 text-sm">
+                <Icon
+                  size={17}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                  style={{ color: accentFor(type, isDark) }}
+                />
+                <span>{t(type.shortKey)}</span>
+              </li>
+            )
+          })}
         </ul>
       </section>
 
       <section>
-        <h3 className="text-sm font-bold text-slate-900">
-          {t('legend.youTitle')}
-        </h3>
-        <p className="mt-1 text-sm text-slate-700">{t('legend.youBody')}</p>
+        <Heading>{t('legend.youTitle')}</Heading>
+        <p className="mt-1 text-sm">{t('legend.youBody')}</p>
       </section>
     </div>
   )
@@ -115,11 +133,11 @@ function About() {
   ]
 
   return (
-    <div className="space-y-5 text-sm text-slate-700">
+    <div className="space-y-6 text-sm">
       {sections.map((section) => (
         <section key={section.title}>
-          <h3 className="text-sm font-bold text-slate-900">{section.title}</h3>
-          <p className="mt-1">{section.body}</p>
+          <Heading>{section.title}</Heading>
+          <p className="mt-1.5">{section.body}</p>
         </section>
       ))}
     </div>
@@ -129,36 +147,14 @@ function About() {
 function InfoPanel({ view, onClose }) {
   const t = useT()
   const legend = view === 'legend'
-  const title = legend ? t('legend.title') : t('about.title')
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      className="fixed inset-0 z-[1100] flex items-end justify-center bg-black/50"
-      onClick={onClose}
+    <Sheet
+      title={legend ? t('legend.title') : t('about.title')}
+      onClose={onClose}
     >
-      <div
-        className="flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)]"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-center justify-between gap-3 border-b border-slate-200 p-5">
-          <h2 className="text-base font-bold text-slate-900">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t('common.close')}
-            className="min-h-11 min-w-11 shrink-0 rounded-xl bg-slate-100 font-semibold text-slate-700"
-          >
-            ✕
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-5">
-          {legend ? <Legend /> : <About />}
-        </div>
-      </div>
-    </div>
+      {legend ? <Legend /> : <About />}
+    </Sheet>
   )
 }
 

@@ -62,7 +62,7 @@ function PhoneSignIn({ onDone }) {
     <div>
       {confirmation ? (
         <form onSubmit={verify} className="space-y-3">
-          <label className="block text-sm font-medium text-slate-700">
+          <label className="block text-sm font-medium">
             {t('phone.codeLabel', { phone })}
             <input
               value={code}
@@ -71,27 +71,27 @@ function PhoneSignIn({ onDone }) {
               autoComplete="one-time-code"
               placeholder="123456"
               dir="ltr"
-              className="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 text-base tracking-widest"
+              className="glass-input tabular mt-1 min-h-12 tracking-[0.3em]"
             />
           </label>
           <button
             type="submit"
             disabled={busy || code.trim().length < 6}
-            className="min-h-12 w-full rounded-xl bg-slate-900 font-semibold text-white disabled:opacity-50"
+            className="btn-primary min-h-12 w-full rounded-full"
           >
             {busy ? t('phone.verifying') : t('phone.verify')}
           </button>
           <button
             type="button"
             onClick={() => setConfirmation(null)}
-            className="w-full text-sm font-medium text-slate-500"
+            className="w-full text-sm font-medium text-zinc-500 dark:text-zinc-400"
           >
             {t('phone.change')}
           </button>
         </form>
       ) : (
         <form onSubmit={sendCode} className="space-y-3">
-          <label className="block text-sm font-medium text-slate-700">
+          <label className="block text-sm font-medium">
             {t('phone.label')}
             <input
               value={phone}
@@ -101,22 +101,22 @@ function PhoneSignIn({ onDone }) {
               autoComplete="tel"
               placeholder={t('phone.placeholder')}
               dir="ltr"
-              className="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 text-base"
+              className="glass-input mt-1 min-h-12"
             />
           </label>
           <button
             type="submit"
             disabled={busy || phone.trim().length < 8}
-            className="min-h-12 w-full rounded-xl bg-slate-900 font-semibold text-white disabled:opacity-50"
+            className="btn-primary min-h-12 w-full rounded-full"
           >
             {busy ? t('phone.sending') : t('phone.send')}
           </button>
-          <p className="text-xs text-slate-500">{t('phone.keep')}</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">{t('phone.keep')}</p>
         </form>
       )}
 
       {error && (
-        <p role="alert" className="mt-3 text-sm font-medium text-red-600">
+        <p role="alert" className="mt-3 text-sm font-medium text-red-500">
           {error}
         </p>
       )}

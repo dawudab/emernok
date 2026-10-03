@@ -15,7 +15,7 @@ export default {
   'common.publish': 'نشر',
   'common.discard': 'حذف',
 
-  'app.name': 'إمرنوك',
+  'app.city': 'نواكشوط',
   'app.counts': '{verified} مؤكدة · {total} نشطة',
 
   'menu.label': 'القائمة',
@@ -46,6 +46,7 @@ export default {
   'type.fuel': 'الإبلاغ عن الوقود',
   'type.fuel.short': 'نقص الوقود (البنزين)',
 
+  'bar.label': 'الإبلاغ عن انقطاع',
   'bar.lockedGuest': 'سجّل الدخول بالبريد أو الهاتف للإبلاغ عن انقطاع',
   'bar.lockedUnverified': 'أكّد بريدك الإلكتروني للإبلاغ عن انقطاع',
 

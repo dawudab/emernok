@@ -3,14 +3,15 @@ import { Fragment, useMemo } from 'react'
 import { Circle, Marker, Popup } from 'react-leaflet'
 import { ANNOUNCEMENT_RADIUS_M, OFFICIAL_COLOR } from '../constants'
 import { useT } from '../i18n/useI18n'
+import { MARKER_GLYPHS } from './markerGlyphs'
 
 // Deliberately a different shape and colour from community pins: an official
 // notice should never be mistaken for a crowd report, or the other way round.
 const officialIcon = L.divIcon({
   className: 'official-pin',
-  html: `<span class="official-pin__badge" style="background:${OFFICIAL_COLOR}">📢</span>`,
-  iconSize: [36, 36],
-  iconAnchor: [18, 18],
+  html: `<span class="official-pin__badge" style="background:${OFFICIAL_COLOR}">${MARKER_GLYPHS.official}</span>`,
+  iconSize: [34, 34],
+  iconAnchor: [17, 17],
   popupAnchor: [0, -18],
 })
 
@@ -38,17 +39,17 @@ function AnnouncementLayer({ announcements }) {
       <Marker position={[item.lat, item.lng]} icon={officialIcon}>
         <Popup>
           <span
-            className="block text-xs font-bold"
+            className="block font-mono text-[10px] font-semibold tracking-[0.2em] uppercase"
             style={{ color: OFFICIAL_COLOR }}
           >
             {t('banner.official')}
           </span>
-          <span className="mt-1 block font-semibold">
+          <span className="mt-1 block text-sm font-semibold">
             {t('banner.from', { org: item.org, area: item.area })}
           </span>
           <span className="mt-1 block text-sm">{item.text}</span>
           {item.expiresAt?.toDate && (
-            <span className="mt-1 block text-xs text-slate-500">
+            <span className="tabular mt-1 block text-xs opacity-70">
               {t('banner.until', {
                 time: item.expiresAt.toDate().toLocaleString(),
               })}

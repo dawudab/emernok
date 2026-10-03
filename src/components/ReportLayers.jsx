@@ -9,15 +9,17 @@ import {
 } from '../constants'
 import { useT } from '../i18n/useI18n'
 import { VOTE_RESTORED, VOTE_STILL_OUT } from '../services/reports'
+import { MARKER_GLYPHS } from './markerGlyphs'
 
 // Leaflet's default marker relies on bundled image assets, so we draw our own
-// pin: fill shows validation status, the emoji shows which utility it is.
-function buildIcon(icon, color, verified) {
+// pin: fill shows validation status, the glyph shows which utility it is.
+function buildIcon(iconName, color, verified) {
+  const size = verified ? 34 : 28
   return L.divIcon({
     className: 'report-pin',
-    html: `<span class="report-pin__dot" style="background:${color}">${icon}</span>`,
-    iconSize: verified ? [34, 34] : [28, 28],
-    iconAnchor: verified ? [17, 17] : [14, 14],
+    html: `<span class="report-pin__dot" style="background:${color};box-shadow:0 0 14px ${color}99">${MARKER_GLYPHS[iconName]}</span>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
     popupAnchor: [0, -16],
   })
 }
@@ -36,7 +38,7 @@ function ReportLayers({ clusters, onVote, canVote, votedIds }) {
         entries.push([
           `${type.id}:${verified}`,
           buildIcon(
-            type.icon,
+            type.iconName,
             verified ? STATUS_COLORS.verified : STATUS_COLORS.unverified,
             verified,
           ),
@@ -72,11 +74,11 @@ function ReportLayers({ clusters, onVote, canVote, votedIds }) {
           icon={icons[`${cluster.type}:${cluster.verified}`]}
         >
           <Popup>
-            <span className="block font-semibold">
-              {type.icon} {t(type.shortKey)}
+            <span className="block text-sm font-semibold">
+              {t(type.shortKey)}
             </span>
             <span
-              className="mt-1 block text-xs font-semibold"
+              className="mt-1 block font-mono text-[10px] font-semibold tracking-[0.15em] uppercase"
               style={{ color }}
             >
               {cluster.verified
@@ -86,10 +88,10 @@ function ReportLayers({ clusters, onVote, canVote, votedIds }) {
                     total: VERIFY_MIN_USERS,
                   })}
             </span>
-            <span className="mt-1 block text-xs text-slate-500">
+            <span className="tabular mt-1 block text-xs opacity-70">
               {t('popup.latest', { time: formatTime(cluster.latest.createdAt) })}
             </span>
-            <span className="mt-1 block text-xs text-slate-500">
+            <span className="tabular mt-0.5 block text-xs opacity-70">
               {t('popup.tally', {
                 out: cluster.stillOutCount,
                 back: cluster.restoredCount,
@@ -97,7 +99,7 @@ function ReportLayers({ clusters, onVote, canVote, votedIds }) {
             </span>
 
             {alreadyVoted ? (
-              <span className="mt-2 block text-xs font-medium text-slate-500">
+              <span className="mt-2 block text-xs font-medium opacity-70">
                 {t('popup.voted')}
               </span>
             ) : (
@@ -106,7 +108,7 @@ function ReportLayers({ clusters, onVote, canVote, votedIds }) {
                   type="button"
                   disabled={!canVote}
                   onClick={() => onVote(cluster.latest.id, VOTE_STILL_OUT)}
-                  className="min-h-9 flex-1 rounded-lg bg-red-500 px-2 text-xs font-semibold text-white disabled:opacity-50"
+                  className="min-h-9 flex-1 rounded-full bg-red-500 px-2 text-xs font-semibold text-white transition-all duration-300 disabled:opacity-40"
                 >
                   {t('popup.stillOut')}
                 </button>
@@ -114,14 +116,14 @@ function ReportLayers({ clusters, onVote, canVote, votedIds }) {
                   type="button"
                   disabled={!canVote}
                   onClick={() => onVote(cluster.latest.id, VOTE_RESTORED)}
-                  className="min-h-9 flex-1 rounded-lg bg-emerald-600 px-2 text-xs font-semibold text-white disabled:opacity-50"
+                  className="min-h-9 flex-1 rounded-full bg-emerald-500 px-2 text-xs font-semibold text-white transition-all duration-300 disabled:opacity-40"
                 >
                   {t('popup.back')}
                 </button>
               </span>
             )}
             {!canVote && (
-              <span className="mt-1 block text-[11px] text-slate-500">
+              <span className="mt-1 block text-[11px] opacity-70">
                 {t('popup.signInToVote')}
               </span>
             )}

@@ -4,6 +4,7 @@ import { useAuth } from '../context/useAuth'
 import { useNearbyMessages } from '../hooks/useNearbyMessages'
 import { useT } from '../i18n/useI18n'
 import { MAX_MESSAGE_LENGTH, sendMessage } from '../services/messages'
+import Sheet from './Sheet'
 
 function formatDistance(metres) {
   if (metres == null) return ''
@@ -47,117 +48,93 @@ function CommunityPanel({ onClose, position, onRequestSignIn }) {
     }
   }
 
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('community.title')}
-      className="fixed inset-0 z-[1100] flex items-end justify-center bg-black/50"
-      onClick={onClose}
+  const composer = !canWrite ? (
+    <button
+      type="button"
+      onClick={onRequestSignIn}
+      className="btn-primary min-h-12 w-full rounded-full"
     >
-      <div
-        className="flex h-[80dvh] w-full max-w-md flex-col rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)]"
-        onClick={(event) => event.stopPropagation()}
+      {isAnonymous ? t('community.signIn') : t('community.verify')}
+    </button>
+  ) : (
+    <form onSubmit={submit} className="flex items-end gap-2">
+      <textarea
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        rows={1}
+        maxLength={MAX_MESSAGE_LENGTH}
+        disabled={!position}
+        placeholder={t('community.placeholder')}
+        className="glass-input min-h-12 flex-1 resize-none py-3"
+      />
+      <button
+        type="submit"
+        disabled={busy || !text.trim() || !position}
+        className="btn-primary min-h-12 shrink-0 rounded-full px-5"
       >
-        <div className="flex items-start justify-between gap-3 border-b border-slate-200 p-4">
-          <div>
-            <h2 className="text-base font-bold text-slate-900">
-              {t('community.title')}
-            </h2>
-            <p className="text-xs text-slate-500">
-              {t('community.subtitle', { km: COMMUNITY_RADIUS_KM })}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t('common.close')}
-            className="min-h-11 min-w-11 shrink-0 rounded-xl bg-slate-100 font-semibold text-slate-700"
-          >
-            ✕
-          </button>
-        </div>
+        {busy ? '…' : t('common.send')}
+      </button>
+    </form>
+  )
 
-        <div className="flex-1 space-y-3 overflow-y-auto p-4">
-          {!position && (
-            <p className="text-sm text-slate-500">
-              {t('community.needLocation')}
-            </p>
-          )}
-          {error && (
-            <p role="alert" className="text-sm font-medium text-red-600">
-              {t('community.loadFailed', { message: error.message })}
-            </p>
-          )}
-          {position && !error && messages.length === 0 && (
-            <p className="text-sm text-slate-500">{t('community.empty')}</p>
-          )}
-
-          {messages.map((message) => {
-            const mine = message.uid === uid
-            return (
-              <div
-                key={message.id}
-                className={`max-w-[85%] rounded-2xl px-3 py-2 ${
-                  mine
-                    ? 'ms-auto bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-800'
-                }`}
-              >
-                <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                <p
-                  className={`mt-1 text-[11px] ${
-                    mine ? 'text-slate-300' : 'text-slate-500'
-                  }`}
-                >
-                  {formatTime(message.createdAt)} ·{' '}
-                  {t('community.away', {
-                    distance: formatDistance(message.distance),
-                  })}
-                </p>
-              </div>
-            )
-          })}
-          <div ref={endRef} />
-        </div>
-
-        <div className="border-t border-slate-200 p-3">
-          {!canWrite ? (
-            <button
-              type="button"
-              onClick={onRequestSignIn}
-              className="min-h-12 w-full rounded-xl bg-slate-900 font-semibold text-white"
-            >
-              {isAnonymous ? t('community.signIn') : t('community.verify')}
-            </button>
-          ) : (
-            <form onSubmit={submit} className="flex items-end gap-2">
-              <textarea
-                value={text}
-                onChange={(event) => setText(event.target.value)}
-                rows={1}
-                maxLength={MAX_MESSAGE_LENGTH}
-                disabled={!position}
-                placeholder={t('community.placeholder')}
-                className="min-h-12 flex-1 resize-none rounded-xl border border-slate-300 px-3 py-3 text-base"
-              />
-              <button
-                type="submit"
-                disabled={busy || !text.trim() || !position}
-                className="min-h-12 shrink-0 rounded-xl bg-slate-900 px-4 font-semibold text-white disabled:opacity-50"
-              >
-                {busy ? '…' : t('common.send')}
-              </button>
-            </form>
-          )}
+  return (
+    <Sheet
+      tall
+      title={t('community.title')}
+      subtitle={t('community.subtitle', { km: COMMUNITY_RADIUS_KM })}
+      onClose={onClose}
+      footer={
+        <>
+          {composer}
           {sendError && (
-            <p role="alert" className="mt-2 text-sm font-medium text-red-600">
+            <p role="alert" className="mt-2 text-sm font-medium text-red-500">
               {sendError}
             </p>
           )}
-        </div>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        {!position && (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            {t('community.needLocation')}
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="text-sm font-medium text-red-500">
+            {t('community.loadFailed', { message: error.message })}
+          </p>
+        )}
+        {position && !error && messages.length === 0 && (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            {t('community.empty')}
+          </p>
+        )}
+
+        {messages.map((message) => {
+          const mine = message.uid === uid
+          return (
+            <div
+              key={message.id}
+              className={`max-w-[85%] rounded-2xl px-3 py-2 transition-all duration-300 ${
+                mine
+                  ? 'ms-auto bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
+                  : 'glass-inset'
+              }`}
+            >
+              <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+              <p className="tabular mt-1 text-[11px] opacity-60">
+                {formatTime(message.createdAt)} ·{' '}
+                {t('community.away', {
+                  distance: formatDistance(message.distance),
+                })}
+              </p>
+            </div>
+          )
+        })}
+        <div ref={endRef} />
       </div>
-    </div>
+    </Sheet>
   )
 }
 

@@ -11,7 +11,7 @@ export default {
   'common.publish': 'Publier',
   'common.discard': 'Supprimer',
 
-  'app.name': 'Emernok',
+  'app.city': 'Nouakchott',
   'app.counts': '{verified} confirmées · {total} actives',
 
   'menu.label': 'Menu',
@@ -44,6 +44,7 @@ export default {
   'type.fuel': 'Signaler le carburant',
   'type.fuel.short': 'Pénurie de carburant',
 
+  'bar.label': 'Signaler une panne',
   'bar.lockedGuest':
     'Connectez-vous par e-mail ou téléphone pour signaler une panne',
   'bar.lockedUnverified':

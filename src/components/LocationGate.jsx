@@ -1,3 +1,4 @@
+import { MapPin } from 'lucide-react'
 import { useT } from '../i18n/useI18n'
 
 /**
@@ -15,13 +16,15 @@ function LocationGate({ status, permission, onRetry, onDismiss }) {
     return (
       <div
         role="status"
-        className="pointer-events-auto flex items-center gap-2 rounded-xl bg-slate-900/90 px-4 py-2 text-sm font-medium text-white shadow-lg"
+        className="glass-pill pointer-events-auto flex w-fit items-center gap-2 px-4 py-2 text-xs font-medium"
       >
         <span
           aria-hidden="true"
-          className="size-2.5 animate-pulse rounded-full bg-amber-400"
+          className="size-2 animate-pulse rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]"
         />
-        {t('location.asking')}
+        <span className="font-mono tracking-wide uppercase">
+          {t('location.asking')}
+        </span>
       </div>
     )
   }
@@ -36,27 +39,24 @@ function LocationGate({ status, permission, onRetry, onDismiss }) {
         : t('location.unavailable')
 
   return (
-    <div
-      role="alert"
-      className="pointer-events-auto rounded-xl bg-white px-4 py-3 shadow-lg ring-1 ring-slate-200"
-    >
+    <div role="alert" className="glass pointer-events-auto px-4 py-3">
       <div className="flex items-start gap-3">
-        <span aria-hidden="true" className="text-lg leading-none">
-          📍
-        </span>
+        <MapPin size={18} strokeWidth={2} aria-hidden="true" className="mt-0.5" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-slate-900">
+          <p className="font-mono text-xs font-semibold tracking-[0.15em] uppercase">
             {t('location.title')}
           </p>
-          <p className="mt-0.5 text-sm text-slate-600">{body}</p>
-          <p className="mt-1 text-xs text-slate-500">{t('location.why')}</p>
+          <p className="mt-1 text-sm">{body}</p>
+          <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+            {t('location.why')}
+          </p>
 
           <div className="mt-3 flex gap-2">
             {status !== 'unsupported' && (
               <button
                 type="button"
                 onClick={onRetry}
-                className="min-h-11 flex-1 rounded-xl bg-slate-900 px-3 text-sm font-semibold text-white"
+                className="btn-primary min-h-11 flex-1 rounded-full px-3 text-sm"
               >
                 {blocked ? t('location.retry') : t('location.enable')}
               </button>
@@ -64,7 +64,7 @@ function LocationGate({ status, permission, onRetry, onDismiss }) {
             <button
               type="button"
               onClick={onDismiss}
-              className="min-h-11 rounded-xl border border-slate-300 px-3 text-sm font-semibold text-slate-700"
+              className="btn-ghost min-h-11 rounded-full px-4 text-sm"
             >
               {t('location.later')}
             </button>

@@ -1,6 +1,23 @@
 @import 'tailwindcss';
 @import 'leaflet/dist/leaflet.css';
 
+/* Tailwind v4 has no tailwind.config.js: dark mode is a custom variant and the
+   theme is declared here. This is the v4 equivalent of darkMode: 'class'. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans:
+    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Data, coordinates, timestamps and status badges. */
+  --font-mono:
+    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Utility accents are the only colour in an otherwise monochrome palette. */
+  --color-accent-power: #f5ff3d;
+  --color-accent-water: #22d3ee;
+  --color-accent-fuel: #fafafa;
+}
+
 html,
 body,
 #root {
@@ -9,14 +26,141 @@ body,
 }
 
 body {
+  font-family: var(--font-sans);
   overscroll-behavior: none;
+  background: #f4f4f5;
+  color: #09090b;
+  transition:
+    background-color 300ms ease,
+    color 300ms ease;
 }
 
-/* Leaflet needs an explicitly sized container */
+.dark body {
+  background: #09090b;
+  color: #fafafa;
+}
+
+/* Numbers read as data, not prose. */
+.tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* ---- glass -------------------------------------------------------------- */
+
+/* One definition per surface so light and dark stay in step. Sheets are more
+   opaque than floating chrome on purpose: long text over a moving map is
+   unreadable at the same blur that looks good on a pill. */
+.glass {
+  @apply rounded-3xl border border-white/40 bg-white/40 text-zinc-900 shadow-xl backdrop-blur-xl transition-all duration-300;
+  @apply dark:border-white/10 dark:bg-black/30 dark:text-white dark:shadow-2xl;
+}
+
+.glass-pill {
+  @apply rounded-full border border-white/40 bg-white/40 text-zinc-900 shadow-xl backdrop-blur-xl transition-all duration-300;
+  @apply dark:border-white/10 dark:bg-black/30 dark:text-white dark:shadow-2xl;
+}
+
+.glass-sheet {
+  @apply border border-white/50 bg-white/85 text-zinc-900 shadow-2xl backdrop-blur-2xl transition-all duration-300;
+  @apply dark:border-white/10 dark:bg-zinc-950/85 dark:text-zinc-100;
+}
+
+/* Secondary surfaces inside a sheet. */
+.glass-inset {
+  @apply rounded-2xl border border-black/5 bg-black/[0.03] transition-all duration-300;
+  @apply dark:border-white/10 dark:bg-white/5;
+}
+
+.glass-input {
+  @apply w-full rounded-2xl border border-black/10 bg-white/70 px-3 text-base text-zinc-900 outline-none transition-all duration-300 placeholder:text-zinc-400;
+  @apply focus-visible:border-zinc-900 focus-visible:ring-2 focus-visible:ring-zinc-900/20;
+  @apply dark:border-white/15 dark:bg-white/5 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus-visible:border-white/60 dark:focus-visible:ring-white/20;
+}
+
+.btn-primary {
+  @apply rounded-2xl bg-zinc-900 font-semibold text-white transition-all duration-300 active:bg-zinc-800 disabled:opacity-40;
+  @apply dark:bg-white dark:text-zinc-900 dark:active:bg-zinc-200;
+}
+
+.btn-ghost {
+  @apply rounded-2xl border border-black/10 font-semibold text-zinc-700 transition-all duration-300;
+  @apply dark:border-white/15 dark:text-zinc-200;
+}
+
+.icon-button {
+  @apply flex items-center justify-center rounded-full border border-white/40 bg-white/40 text-zinc-900 backdrop-blur-xl transition-all duration-300;
+  @apply dark:border-white/10 dark:bg-white/10 dark:text-white;
+}
+
+/* ---- leaflet ------------------------------------------------------------ */
+
 .leaflet-container {
   height: 100%;
   width: 100%;
-  background: #e5e7eb;
+  background: #e4e4e7;
+  font-family: var(--font-sans);
+}
+
+.dark .leaflet-container {
+  background: #09090b;
+}
+
+/* Attribution has to stay legible and is required by OSM and CARTO. */
+.leaflet-control-attribution {
+  background: rgb(255 255 255 / 0.6) !important;
+  color: #3f3f46;
+  backdrop-filter: blur(8px);
+  font-size: 10px;
+}
+
+.dark .leaflet-control-attribution {
+  background: rgb(0 0 0 / 0.5) !important;
+  color: #a1a1aa;
+}
+
+.dark .leaflet-control-attribution a {
+  color: #d4d4d8;
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: rgb(255 255 255 / 0.85);
+  color: #09090b;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.25);
+}
+
+.dark .leaflet-popup-content-wrapper,
+.dark .leaflet-popup-tip {
+  background: rgb(9 9 11 / 0.85);
+  color: #fafafa;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 20px;
+}
+
+.leaflet-popup-close-button {
+  color: #71717a !important;
+}
+
+/* Report pins: fill = validation status, icon = utility type.
+   See STATUS_COLORS and REPORT_TYPES in src/constants.js */
+.report-pin__dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  border: 2px solid rgb(255 255 255 / 0.85);
+  color: #09090b;
+}
+
+.dark .report-pin__dot {
+  border-color: rgb(0 0 0 / 0.6);
 }
 
 /* Official notices use a square badge so they never read as a crowd report,
@@ -27,24 +171,8 @@ body {
   justify-content: center;
   width: 100%;
   height: 100%;
-  font-size: 17px;
-  line-height: 1;
-  border-radius: 10px;
-  border: 3px solid #fff;
-  box-shadow: 0 1px 6px rgb(0 0 0 / 0.45);
-}
-
-/* Report pins: fill = validation status, emoji = utility type.
-   See STATUS_COLORS and REPORT_TYPES in src/constants.js */
-.report-pin__dot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  font-size: 15px;
-  line-height: 1;
-  border-radius: 9999px;
-  border: 3px solid #fff;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.45);
+  border-radius: 12px;
+  border: 2px solid rgb(255 255 255 / 0.85);
+  color: #ffffff;
+  box-shadow: 0 2px 12px rgb(124 58 237 / 0.6);
 }

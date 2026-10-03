@@ -42,7 +42,7 @@ function EmailSignIn() {
           run(() => finishEmailLink(email))
         }}
       >
-        <p className="text-sm text-slate-700">{t('signIn.confirmAddress')}</p>
+        <p className="text-sm">{t('signIn.confirmAddress')}</p>
         <input
           value={email}
           onChange={(event) => setEmail(event.target.value)}
@@ -50,17 +50,17 @@ function EmailSignIn() {
           autoComplete="email"
           placeholder={t('signIn.emailPlaceholder')}
           dir="ltr"
-          className="min-h-12 w-full rounded-xl border border-slate-300 px-3 text-base"
+          className="glass-input min-h-12"
         />
         <button
           type="submit"
           disabled={busy || !email.includes('@')}
-          className="min-h-12 w-full rounded-xl bg-slate-900 font-semibold text-white disabled:opacity-50"
+          className="btn-primary min-h-12 w-full rounded-full"
         >
           {busy ? t('signIn.finishing') : t('signIn.finish')}
         </button>
         {emailLinkError && (
-          <p role="alert" className="text-sm font-medium text-red-600">
+          <p role="alert" className="text-sm font-medium text-red-500">
             {emailLinkError.message}
           </p>
         )}
@@ -70,12 +70,12 @@ function EmailSignIn() {
 
   if (sent) {
     return (
-      <div className="rounded-xl bg-emerald-50 p-4">
-        <p className="text-sm font-medium text-emerald-900">{sent}</p>
+      <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4">
+        <p className="text-sm font-medium">{sent}</p>
         <button
           type="button"
           onClick={() => setSent(null)}
-          className="mt-3 text-sm font-semibold text-slate-600"
+          className="mt-3 text-sm font-semibold text-zinc-600 dark:text-zinc-300"
         >
           {t('signIn.useAnother')}
         </button>
@@ -95,7 +95,7 @@ function EmailSignIn() {
         }}
         className="space-y-3"
       >
-        <label className="block text-sm font-medium text-slate-700">
+        <label className="block text-sm font-medium">
           {t('signIn.emailLabel')}
           <input
             value={email}
@@ -105,23 +105,23 @@ function EmailSignIn() {
             autoComplete="email"
             placeholder={t('signIn.emailPlaceholder')}
             dir="ltr"
-            className="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 text-base"
+            className="glass-input mt-1 min-h-12"
           />
         </label>
 
         <button
           type="submit"
           disabled={busy || !email.includes('@')}
-          className="min-h-12 w-full rounded-xl bg-slate-900 font-semibold text-white disabled:opacity-50"
+          className="btn-primary min-h-12 w-full rounded-full"
         >
           {busy ? t('common.working') : t('signIn.sendLink')}
         </button>
 
-        <p className="text-xs text-slate-500">{t('signIn.linkHelp')}</p>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">{t('signIn.linkHelp')}</p>
       </form>
 
       {error && (
-        <p role="alert" className="mt-3 text-sm font-medium text-red-600">
+        <p role="alert" className="mt-3 text-sm font-medium text-red-500">
           {error}
         </p>
       )}

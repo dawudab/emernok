@@ -24,38 +24,52 @@ export const RESTORED_THRESHOLD = 3
 
 export const COMMUNITY_RADIUS_KM = 2
 
-// Marker fill reflects validation status; the emoji carries the utility type.
+// Marker fill reflects validation status; the icon carries the utility type.
 export const STATUS_COLORS = {
-  unverified: '#eab308',
-  verified: '#ef4444',
+  unverified: '#facc15',
+  verified: '#ff3b30',
 }
 
 // Labels are translation keys rather than text: see src/i18n/translations.
+// `accent` is the only colour each type carries — the palette is otherwise
+// monochrome, so these read as signal rather than decoration. Icons are named
+// here and resolved in src/components/icons.js to keep this file free of JSX,
+// since the Node importer imports it too.
 export const REPORT_TYPES = {
   power: {
     id: 'power',
     labelKey: 'type.power',
     shortKey: 'type.power.short',
-    icon: '⚡',
-    color: '#ef4444',
-    button: 'bg-red-500 active:bg-red-600',
+    iconName: 'power',
+    accent: '#f5ff3d',
+    accentLight: '#a16207',
   },
   water: {
     id: 'water',
     labelKey: 'type.water',
     shortKey: 'type.water.short',
-    icon: '💧',
-    color: '#2563eb',
-    button: 'bg-blue-600 active:bg-blue-700',
+    iconName: 'water',
+    accent: '#22d3ee',
+    accentLight: '#0e7490',
   },
   fuel: {
     id: 'fuel',
     labelKey: 'type.fuel',
     shortKey: 'type.fuel.short',
-    icon: '⛽',
-    color: '#eab308',
-    button: 'bg-yellow-500 active:bg-yellow-600',
+    iconName: 'fuel',
+    accent: '#fafafa',
+    accentLight: '#3f3f46',
   },
+}
+
+/**
+ * Neon on black does not survive on white: bright white and neon yellow both
+ * disappear against light glass, so each accent carries a darker twin for
+ * light mode. The dark values stay exact wherever the icon sits on a dark
+ * chip, such as the active report button.
+ */
+export function accentFor(type, isDark) {
+  return isDark ? type.accent : (type.accentLight ?? type.accent)
 }
 
 export const REPORT_TYPE_LIST = Object.values(REPORT_TYPES)
@@ -136,4 +150,4 @@ export const ANNOUNCEMENT_RADIUS_M = 2000
 export const ANNOUNCEMENT_MAX_HOURS = 48
 export const ANNOUNCEMENT_DEFAULT_HOURS = 4
 export const MAX_ANNOUNCEMENT_LENGTH = 500
-export const OFFICIAL_COLOR = '#7c3aed'
+export const OFFICIAL_COLOR = '#8b5cf6'

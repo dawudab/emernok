@@ -1,23 +1,28 @@
+import { Menu } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { COMMUNITY_RADIUS_KM } from '../constants'
 import { useAuth } from '../context/useAuth'
 import { LANGUAGES, useI18n } from '../i18n/useI18n'
 import { signOut } from '../services/auth'
 import InstallButton from './InstallButton'
+import { MENU_ICONS } from './icons'
 
 const ROW =
-  'flex w-full items-center gap-3 px-4 py-3 text-start text-sm font-medium text-slate-800 outline-none active:bg-slate-100 focus-visible:bg-slate-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-900 disabled:opacity-40'
+  'flex w-full items-center gap-3 px-4 py-3 text-start text-sm font-medium outline-none transition-all duration-300 active:bg-black/5 focus-visible:bg-black/5 dark:active:bg-white/10 dark:focus-visible:bg-white/10 disabled:opacity-40'
 
-function MenuRow({ icon, label, hint, onClick, disabled }) {
+function MenuRow({ icon: Icon, label, hint, onClick, disabled }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled} className={ROW}>
-      <span aria-hidden="true" className="w-5 text-center text-base">
-        {icon}
-      </span>
+      <Icon
+        size={18}
+        strokeWidth={2}
+        aria-hidden="true"
+        className="shrink-0 text-zinc-500 dark:text-zinc-400"
+      />
       <span className="flex-1">
         {label}
         {hint && (
-          <span className="block text-xs font-normal text-slate-500">
+          <span className="block text-xs font-normal text-zinc-500 dark:text-zinc-400">
             {hint}
           </span>
         )}
@@ -100,9 +105,9 @@ function AppMenu({
         aria-expanded={open}
         aria-controls="app-menu"
         aria-label={t('menu.label')}
-        className="min-h-11 min-w-11 rounded-lg bg-slate-100 text-lg outline-none focus-visible:ring-2 focus-visible:ring-slate-900 active:bg-slate-200"
+        className="icon-button size-11 outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-white"
       >
-        ☰
+        <Menu size={20} strokeWidth={2} aria-hidden="true" />
       </button>
 
       {open && (
@@ -121,14 +126,14 @@ function AppMenu({
             // The header starts 1rem from the top and is ~3.5rem tall. Bounding
             // the menu to the remaining dynamic viewport makes it scroll on
             // short phones instead of clipping the controls below it.
-            className="absolute end-0 z-[1095] mt-2 flex max-h-[calc(100dvh-6rem)] w-[min(18rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200"
+            className="glass-sheet absolute end-0 z-[1095] mt-2 flex max-h-[calc(100dvh-6rem)] w-[min(18rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-3xl"
           >
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
-              <div className="border-b border-slate-100 bg-slate-50 px-4 py-3">
-                <p className="truncate text-sm font-bold text-slate-900">
+              <div className="border-b border-black/5 px-4 py-3 dark:border-white/10">
+                <p className="truncate font-mono text-xs font-semibold tracking-[0.15em] uppercase">
                   {isAnonymous ? t('menu.guest') : identityLabel}
                 </p>
-                <p className="mt-0.5 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                   {canWrite
                     ? t('menu.statusVerified')
                     : isAnonymous
@@ -138,7 +143,7 @@ function AppMenu({
               </div>
 
               <MenuRow
-                icon="💬"
+                icon={MENU_ICONS.community}
                 label={t('menu.community')}
                 hint={
                   canWrite
@@ -148,59 +153,56 @@ function AppMenu({
                 onClick={choose(onOpenCommunity)}
               />
               <MenuRow
-                icon="👤"
+                icon={MENU_ICONS.profile}
                 label={isAnonymous ? t('common.signIn') : t('menu.myReports')}
                 hint={isAnonymous ? t('menu.signInHint') : undefined}
                 onClick={choose(onOpenProfile)}
               />
               <MenuRow
-                icon="📍"
+                icon={MENU_ICONS.recenter}
                 label={t('menu.recenter')}
                 hint={canRecenter ? undefined : t('menu.recenterOff')}
                 disabled={!canRecenter}
                 onClick={choose(onRecenter)}
               />
 
-              <div className="border-t border-slate-100" />
+              <div className="border-t border-black/5 dark:border-white/10" />
 
               <MenuRow
-                icon="📢"
+                icon={MENU_ICONS.official}
                 label={t('menu.official')}
                 hint={t('menu.officialHint')}
                 onClick={choose(onOpenOfficial)}
               />
               {isAdmin && (
                 <MenuRow
-                  icon="🛡️"
+                  icon={MENU_ICONS.admin}
                   label={t('menu.admin')}
                   onClick={choose(onOpenAdmin)}
                 />
               )}
 
-              <div className="border-t border-slate-100" />
+              <div className="border-t border-black/5 dark:border-white/10" />
 
               <MenuRow
-                icon="🗺️"
+                icon={MENU_ICONS.legend}
                 label={t('menu.legend')}
                 onClick={choose(onOpenLegend)}
               />
               <MenuRow
-                icon="ℹ️"
+                icon={MENU_ICONS.about}
                 label={t('menu.about')}
                 hint={t('menu.aboutHint')}
                 onClick={choose(onOpenAbout)}
               />
 
-              <InstallButton
-                className={ROW}
-                label={`⬇️  ${t('menu.install')}`}
-              />
+              <InstallButton className={ROW} label={t('menu.install')} withIcon />
 
               {!isAnonymous && (
                 <>
-                  <div className="border-t border-slate-100" />
+                  <div className="border-t border-black/5 dark:border-white/10" />
                   <MenuRow
-                    icon="↩"
+                    icon={MENU_ICONS.signOut}
                     label={t('common.signOut')}
                     onClick={choose(signOut)}
                   />
@@ -211,8 +213,8 @@ function AppMenu({
             {/* Kept outside the scroll area so changing language is always
                 reachable, even on the shortest supported viewport — someone
                 who cannot read the current language needs it first. */}
-            <div className="shrink-0 border-t border-slate-200 bg-white px-4 py-3 shadow-[0_-4px_12px_rgba(15,23,42,0.08)]">
-              <p className="text-xs font-semibold text-slate-500">
+            <div className="shrink-0 border-t border-black/5 px-4 py-3 dark:border-white/10">
+              <p className="font-mono text-[10px] font-semibold tracking-[0.15em] text-zinc-500 uppercase dark:text-zinc-400">
                 {t('menu.language')}
               </p>
               <div
@@ -227,10 +229,10 @@ function AppMenu({
                     lang={option.id}
                     aria-pressed={lang === option.id}
                     onClick={() => setLang(option.id)}
-                    className={`min-h-11 flex-1 rounded-lg text-xs font-semibold outline-none focus-visible:ring-2 focus-visible:ring-slate-900 ${
+                    className={`min-h-11 flex-1 rounded-full text-xs font-semibold outline-none transition-all duration-300 focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-white ${
                       lang === option.id
-                        ? 'bg-slate-900 text-white'
-                        : 'bg-slate-100 text-slate-700'
+                        ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
+                        : 'bg-black/5 text-zinc-700 dark:bg-white/10 dark:text-zinc-200'
                     }`}
                   >
                     {option.label}

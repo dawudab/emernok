@@ -13,7 +13,7 @@ export default {
   'common.publish': 'Publish',
   'common.discard': 'Discard',
 
-  'app.name': 'Emernok',
+  'app.city': 'Nouakchott',
   'app.counts': '{verified} verified · {total} active',
 
   'menu.label': 'Menu',
@@ -44,6 +44,7 @@ export default {
   'type.fuel': 'Report Fuel',
   'type.fuel.short': 'Gas / fuel shortage',
 
+  'bar.label': 'Report an outage',
   'bar.lockedGuest': 'Sign in with email or phone to report an outage',
   'bar.lockedUnverified': 'Verify your email address to report an outage',
 

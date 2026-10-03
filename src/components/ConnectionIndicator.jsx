@@ -2,10 +2,16 @@ import { useAuth } from '../context/useAuth'
 import { useT } from '../i18n/useI18n'
 
 const STATUS_STYLES = {
-  authenticated: { dot: 'bg-green-500', key: 'connection.connected' },
+  authenticated: {
+    dot: 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]',
+    key: 'connection.connected',
+  },
   loading: { dot: 'bg-amber-400 animate-pulse', key: 'connection.connecting' },
-  error: { dot: 'bg-red-500', key: 'connection.error' },
-  unconfigured: { dot: 'bg-slate-400', key: 'connection.noKeys' },
+  error: {
+    dot: 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)]',
+    key: 'connection.error',
+  },
+  unconfigured: { dot: 'bg-zinc-400', key: 'connection.noKeys' },
 }
 
 function ConnectionIndicator() {
@@ -15,14 +21,11 @@ function ConnectionIndicator() {
   const label = t(key)
 
   return (
-    <div className="flex items-center gap-2" title={uid ? uid : label}>
+    <div className="flex shrink-0 items-center" title={uid ?? label}>
       <span
         aria-hidden="true"
-        className={`size-2.5 shrink-0 rounded-full ${dot}`}
+        className={`size-2 rounded-full transition-all duration-300 ${dot}`}
       />
-      <span className="hidden text-xs font-medium text-slate-600 sm:inline">
-        {label}
-      </span>
       <span className="sr-only">{label}</span>
     </div>
   )

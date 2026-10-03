@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { MapContainer, TileLayer } from 'react-leaflet'
+import { MapContainer } from 'react-leaflet'
 import { DEFAULT_ZOOM, NOUAKCHOTT_CENTER, REPORT_TYPES } from '../constants'
 import { useAuth } from '../context/useAuth'
 import { useGeolocation } from '../hooks/useGeolocation'
@@ -22,11 +22,20 @@ import ConnectionIndicator from './ConnectionIndicator'
 import InfoPanel from './InfoPanel'
 import LocationGate from './LocationGate'
 import MapClickPicker from './MapClickPicker'
+import MapTiles from './MapTiles'
 import OfficialPanel from './OfficialPanel'
 import ProfilePanel from './ProfilePanel'
 import RecenterMap from './RecenterMap'
 import ReportActionBar from './ReportActionBar'
 import ReportLayers from './ReportLayers'
+import { CloseIcon } from './icons'
+
+const NOTICE_TONES = {
+  error: 'border-red-500/40 bg-red-500/15 text-red-900 dark:text-red-100',
+  success:
+    'border-emerald-500/40 bg-emerald-500/15 text-emerald-900 dark:text-emerald-100',
+  info: 'border-white/40 bg-white/50 text-zinc-900 dark:border-white/10 dark:bg-black/40 dark:text-zinc-100',
+}
 
 function MapDashboard() {
   const { uid, status, canWrite, isAnonymous, emailLinkStatus } = useAuth()
@@ -51,6 +60,7 @@ function MapDashboard() {
   const [votedIds, setVotedIds] = useState(() => new Set())
 
   const clusters = useMemo(() => buildClusters(reports), [reports])
+  const verifiedCount = clusters.filter((cluster) => cluster.verified).length
 
   // Service errors carry a translation key; anything else is a raw SDK message.
   const describe = useCallback(
@@ -159,109 +169,56 @@ function MapDashboard() {
 
   return (
     <div className="relative h-dvh w-full overflow-hidden">
-      <MapContainer
-        center={NOUAKCHOTT_CENTER}
-        zoom={DEFAULT_ZOOM}
-        scrollWheelZoom={false}
-        zoomControl={false}
-        ref={setMap}
-        className="h-full w-full"
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <AnnouncementLayer announcements={announcements} />
-        <ReportLayers
-          clusters={clusters}
-          onVote={handleVote}
-          canVote={canWrite}
-          votedIds={votedIds}
-        />
-        <RecenterMap position={position} />
-        {awaitingMapClick && <MapClickPicker onPick={handleMapPick} />}
-      </MapContainer>
+      <div className="absolute inset-0 z-0">
+        <MapContainer
+          center={NOUAKCHOTT_CENTER}
+          zoom={DEFAULT_ZOOM}
+          scrollWheelZoom={false}
+          zoomControl={false}
+          ref={setMap}
+          className="h-full w-full"
+        >
+          <MapTiles />
+          <AnnouncementLayer announcements={announcements} />
+          <ReportLayers
+            clusters={clusters}
+            onVote={handleVote}
+            canVote={canWrite}
+            votedIds={votedIds}
+          />
+          <RecenterMap position={position} />
+          {awaitingMapClick && <MapClickPicker onPick={handleMapPick} />}
+        </MapContainer>
+      </div>
 
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-[1000] space-y-2 p-4">
-        <div className="pointer-events-auto flex items-center justify-between gap-3 rounded-xl bg-white/90 px-4 py-3 shadow-lg backdrop-blur">
-          <div className="min-w-0">
-            <h1 className="text-lg font-bold text-slate-900">{t('app.name')}</h1>
-            <p className="truncate text-sm text-slate-600">
-              {t('app.counts', {
-                verified: clusters.filter((cluster) => cluster.verified).length,
-                total: clusters.length,
-              })}
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-10 space-y-2 p-4">
+        <div className="glass-pill pointer-events-auto flex items-center gap-3 py-2 ps-5 pe-2">
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate font-mono text-sm font-semibold tracking-[0.22em] uppercase">
+              {t('app.city')}
+            </h1>
+            <p className="tabular truncate text-[11px] text-zinc-600 dark:text-zinc-400">
+              {t('app.counts', { verified: verifiedCount, total: clusters.length })}
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <ConnectionIndicator />
-            <AppMenu
-              onOpenCommunity={() => setPanel('community')}
-              onOpenProfile={() => setPanel('profile')}
-              onOpenLegend={() => setPanel('legend')}
-              onOpenAbout={() => setPanel('about')}
-              onOpenOfficial={() => setPanel('official')}
-              onOpenAdmin={() => setPanel('admin')}
-              onRecenter={handleRecenter}
-              canRecenter={locationStatus !== 'unsupported'}
-              isAdmin={isAdmin}
-            />
-          </div>
+          <ConnectionIndicator />
+          <AppMenu
+            onOpenCommunity={() => setPanel('community')}
+            onOpenProfile={() => setPanel('profile')}
+            onOpenLegend={() => setPanel('legend')}
+            onOpenAbout={() => setPanel('about')}
+            onOpenOfficial={() => setPanel('official')}
+            onOpenAdmin={() => setPanel('admin')}
+            onRecenter={handleRecenter}
+            canRecenter={locationStatus !== 'unsupported'}
+            isAdmin={isAdmin}
+          />
         </div>
 
         <AnnouncementBanner
           announcements={announcements}
           onFocus={(item) => map?.flyTo([item.lat, item.lng], DEFAULT_ZOOM)}
         />
-
-        {emailLinkStatus === 'completing' && (
-          <div className="pointer-events-auto rounded-xl bg-slate-900/90 px-4 py-3 text-sm font-medium text-white shadow-lg">
-            {t('notice.finishingSignIn')}
-          </div>
-        )}
-
-        {(emailLinkStatus === 'needs-email' || emailLinkStatus === 'error') && (
-          <button
-            type="button"
-            onClick={() => setPanel('profile')}
-            className="pointer-events-auto w-full rounded-xl bg-amber-500 px-4 py-3 text-start text-sm font-medium text-amber-950 shadow-lg"
-          >
-            {t('notice.linkNeedsStep')}
-          </button>
-        )}
-
-        {notice && (
-          <div
-            role="status"
-            className={`pointer-events-auto flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium shadow-lg ${
-              notice.tone === 'error'
-                ? 'bg-red-600 text-white'
-                : notice.tone === 'success'
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-slate-900/90 text-white'
-            }`}
-          >
-            <span className="flex-1">{notice.text}</span>
-            {awaitingMapClick ? (
-              <button
-                type="button"
-                onClick={cancel}
-                className="rounded-lg bg-white/20 px-3 py-1 font-semibold"
-              >
-                {t('common.cancel')}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setNotice(null)}
-                aria-label={t('common.dismiss')}
-                className="rounded-lg bg-white/20 px-2 py-1"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        )}
 
         {!locationDismissed && (
           <LocationGate
@@ -272,8 +229,51 @@ function MapDashboard() {
           />
         )}
 
+        {emailLinkStatus === 'completing' && (
+          <div className="glass pointer-events-auto px-4 py-3 text-sm font-medium">
+            {t('notice.finishingSignIn')}
+          </div>
+        )}
+
+        {(emailLinkStatus === 'needs-email' || emailLinkStatus === 'error') && (
+          <button
+            type="button"
+            onClick={() => setPanel('profile')}
+            className="glass pointer-events-auto w-full border-amber-400/50 bg-amber-400/20 px-4 py-3 text-start text-sm font-medium"
+          >
+            {t('notice.linkNeedsStep')}
+          </button>
+        )}
+
+        {notice && (
+          <div
+            role="status"
+            className={`glass pointer-events-auto flex items-center gap-3 px-4 py-3 text-sm font-medium ${NOTICE_TONES[notice.tone]}`}
+          >
+            <span className="flex-1">{notice.text}</span>
+            {awaitingMapClick ? (
+              <button
+                type="button"
+                onClick={cancel}
+                className="rounded-full bg-black/10 px-3 py-1 text-xs font-semibold dark:bg-white/15"
+              >
+                {t('common.cancel')}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setNotice(null)}
+                aria-label={t('common.dismiss')}
+                className="rounded-full bg-black/10 p-1.5 dark:bg-white/15"
+              >
+                <CloseIcon size={14} strokeWidth={2.5} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        )}
+
         {reportsError && (
-          <div className="pointer-events-auto rounded-xl bg-red-600 px-4 py-3 text-sm font-medium text-white shadow-lg">
+          <div className="glass pointer-events-auto border-red-500/40 bg-red-500/15 px-4 py-3 text-sm font-medium">
             {t('notice.liveUnavailable', { message: reportsError.message })}
           </div>
         )}

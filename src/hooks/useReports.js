@@ -1,17 +1,25 @@
 import { useEffect, useState } from 'react'
-import { subscribeToReports, subscribeToUserReports } from '../services/reports'
+import {
+  readCachedReports,
+  subscribeToReports,
+  subscribeToUserReports,
+} from '../services/reports'
 
-// The TTL cutoff is baked into the query, so re-subscribe periodically to let
-// pins age out without a page reload.
+// Re-subscribe periodically to keep active report windows fresh.
 const RESUBSCRIBE_MS = 5 * 60 * 1000
 
 export function useReports() {
-  const [reports, setReports] = useState([])
+  // Initialize directly from cached reports so the map renders known outages
+  // immediately even on disconnected or flaky connections.
+  const [reports, setReports] = useState(() => readCachedReports())
   const [error, setError] = useState(null)
   const [epoch, setEpoch] = useState(0)
 
   useEffect(() => {
-    const interval = setInterval(() => setEpoch((value) => value + 1), RESUBSCRIBE_MS)
+    const interval = setInterval(
+      () => setEpoch((value) => value + 1),
+      RESUBSCRIBE_MS,
+    )
     return () => clearInterval(interval)
   }, [])
 
@@ -29,8 +37,6 @@ export function useReports() {
 }
 
 export function useMyReports(uid) {
-  // Tracked together with the uid they belong to, so switching accounts shows
-  // an empty list immediately instead of the previous user's reports.
   const [state, setState] = useState({ uid: null, reports: [], error: null })
 
   useEffect(() => {

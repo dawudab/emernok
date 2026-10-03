@@ -41,6 +41,7 @@ import RecenterMap from './RecenterMap'
 import RegionZonesLayer from './RegionZonesLayer'
 import ReportActionBar from './ReportActionBar'
 import ReportLayers from './ReportLayers'
+import WalkthroughModal from './WalkthroughModal'
 import { CloseIcon } from './icons'
 
 const NOTICE_TONES = {
@@ -69,10 +70,10 @@ function MapDashboard() {
   const [panel, setPanel] = useState(null)
   const [votedIds, setVotedIds] = useState(() => new Set())
 
-  // Nouakchott Regions are ON by default; Top Fuel Stations are OFF by default;
+  // Nouakchott Regions and Top Fuel Stations are ON by default;
   // Verification Filter lives inside Settings only.
   const [showRegions, setShowRegions] = useState(true)
-  const [showStations, setShowStations] = useState(false)
+  const [showStations, setShowStations] = useState(true)
   const [verificationFilter, setVerificationFilter] = useState('all')
 
   const [stationStatuses, setStationStatuses] = useState({})
@@ -286,6 +287,7 @@ function MapDashboard() {
           </div>
           <ConnectionIndicator />
           <AppMenu
+            onOpenWalkthrough={() => setPanel('walkthrough')}
             onOpenCommunity={() => setPanel('community')}
             onOpenProfile={() => setPanel('profile')}
             onOpenLegend={() => setPanel('legend')}
@@ -355,7 +357,23 @@ function MapDashboard() {
         disabled={busy || status !== 'authenticated'}
       />
 
-      {panel === 'profile' && <ProfilePanel onClose={() => setPanel(null)} />}
+      {panel === 'walkthrough' && (
+        <WalkthroughModal
+          onClose={() => setPanel(null)}
+          onOpenProfile={() => setPanel('profile')}
+          onOpenCommunity={() => setPanel('community')}
+        />
+      )}
+      {panel === 'profile' && (
+        <ProfilePanel
+          clusters={allPowerClusters}
+          onFocusReport={(report) => {
+            map?.flyTo([report.lat, report.lng], 15)
+            setPanel(null)
+          }}
+          onClose={() => setPanel(null)}
+        />
+      )}
       {panel === 'official' && <OfficialPanel onClose={() => setPanel(null)} />}
       {panel === 'admin' && <AdminPanel onClose={() => setPanel(null)} />}
       {panel === 'community' && (

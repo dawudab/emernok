@@ -287,4 +287,67 @@ export default {
   'report.submitNow': 'Envoyer le signalement',
   'report.delete': 'Supprimer le signalement',
   'notice.reportDeleted': 'Signalement supprimé.',
+  'profile.statTotal': 'Signalées',
+  'profile.statVerified': 'Confirmées',
+  'profile.statResolved': 'Rétablies',
+  'profile.statusResolved': 'Rétablie',
+  'profile.statusVerified': 'Confirmée',
+  'profile.statusPending': 'En attente ({count}/{total})',
+  'profile.viewOnMap': 'Carte',
+  'menu.yourProfile': 'Votre profil',
+  'menu.yourProfileHint': 'Vos coupures signalées et leur statut',
+
+  'walkthrough.badge': 'Guide interactif',
+  'walkthrough.title': 'Vision, Objectif et Mode d’emploi',
+  'walkthrough.tab.overview': 'Aperçu',
+  'walkthrough.tab.purpose': 'Objectif',
+  'walkthrough.tab.vision': 'Vision',
+  'walkthrough.tab.howto': 'Fonctionnalités',
+  'walkthrough.prev': 'Précédent',
+  'walkthrough.next': 'Suivant',
+  'walkthrough.done': 'Explorer la carte',
+
+  'walkthrough.overview.lead':
+    'Décentraliser la visibilité des infrastructures à Nouakchott.',
+  'walkthrough.overview.body':
+    '« Nouakchott Energy Map » (N.E.M.) décentralise la connaissance de l’état des infrastructures à Nouakchott, transformant les pannes imprévisibles en données visibles et exploitables. En redonnant le pouvoir d’information aux habitants sur le terrain, la plateforme évite qu’une coupure locale ne se transforme en crise domestique.',
+  'walkthrough.stat.power': 'Réseau en direct',
+  'walkthrough.stat.fuel': 'Stations 4.6★+',
+  'walkthrough.stat.regions': '9 Régions',
+
+  'walkthrough.purpose.heading': 'L’Objectif : Résilience communautaire',
+  'walkthrough.purpose.sub':
+    'Redonner du temps et une capacité d’action immédiate aux habitants.',
+  'walkthrough.purpose.p1Title': 'Protéger l’essentiel',
+  'walkthrough.purpose.p1Body':
+    'Lorsque le courant coupe plusieurs jours, les aliments réfrigérés et les médicaments se perdent et les pompes à eau s’arrêtent. En visualisant une panne confirmée à mesure qu’elle s’étend, les familles peuvent s’organiser immédiatement et rejoindre les stations-service disponibles.',
+  'walkthrough.purpose.p2Title': 'Contourner la lenteur bureaucratique',
+  'walkthrough.purpose.p2Body':
+    'Les communiqués officiels arrivent souvent avec retard. Ce système repose sur la vérification entre voisins, transformant les résidents en un réseau de capteurs en temps réel.',
+  'walkthrough.purpose.p3Title': 'Accès sans friction',
+  'walkthrough.purpose.p3Body':
+    'Une urgence exige une action immédiate : aucun téléchargement ni mot de passe requis pour consulter la carte en quelques secondes.',
+
+  'walkthrough.vision.heading': 'La Vision : Un système nerveux numérique pour la ville',
+  'walkthrough.vision.lead':
+    'L’application est conçue non pas comme un réseau social classique, mais comme un instrument civique vital pour Nouakchott.',
+  'walkthrough.vision.civicTitle': 'Une fondation pour la Civic Tech',
+  'walkthrough.vision.civicBody':
+    'Construite sur une architecture légère React et Firebase capable d’absorber les pics de trafic lors d’une panne de secteur, elle ouvre la voie à l’acheminement d’urgence de ressources vers les quartiers plongés dans le noir.',
+  'walkthrough.vision.closing':
+    'En définitive, N.E.M. sert de source commune de vérité : elle rend visibles les coupures tout en fournissant aux citoyens les données nécessaires pour s’y adapter en sécurité.',
+
+  'walkthrough.howto.heading': 'Comment utiliser l’application',
+  'walkthrough.howto.f1Title': '1. Signaler une coupure (Bouton ⚡ en bas à droite)',
+  'walkthrough.howto.f1Body':
+    'Appuyez sur l’éclair dans le coin inférieur droit pour capturer automatiquement vos coordonnées GPS, ajouter des détails et publier votre signalement.',
+  'walkthrough.howto.f2Title': '2. Cliquez sur une région pour voir ses statistiques',
+  'walkthrough.howto.f2Body':
+    'Les 9 moughataas de Nouakchott sont découpées sans espace vide. Cliquez sur une région pour voir son statut, son niveau d’électricité (%) et ses meilleures stations.',
+  'walkthrough.howto.f3Title': '3. Meilleures stations-service et itinéraire',
+  'walkthrough.howto.f3Body':
+    'Cliquez sur une station pour indiquer Carburant dispo ou Plus de carburant, voir les avis et ouvrir l’itinéraire dans votre application de cartes.',
+  'walkthrough.howto.f4Title': '4. Votre profil et vérification entre voisins',
+  'walkthrough.howto.f4Body':
+    '3 voisins distincts à moins de 500 m confirment une panne (rouge). Les signalements non confirmés de plus de 24 h sont supprimés automatiquement. Ouvrez Votre profil dans le menu pour suivre ou supprimer vos signalements.',
 }

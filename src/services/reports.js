@@ -27,6 +27,7 @@ const REPORTS_COLLECTION = 'reports'
 const USER_STATS_COLLECTION = 'userStats'
 const MAX_REPORTS = 200
 const DAY_MS = 24 * 60 * 60 * 1000
+const REPORTS_CACHE_KEY = 'nem:cachedReports:v1'
 
 export const VOTE_STILL_OUT = 'still_out'
 export const VOTE_RESTORED = 'restored'
@@ -54,20 +55,62 @@ export function ttlCutoff() {
 }
 
 function toMillis(value) {
+  if (typeof value === 'number') return value
   return value?.toMillis?.() ?? 0
 }
 
 export function isWithinHours(report, hours = REPORT_TTL_HOURS) {
   const createdMs = toMillis(report.createdAt)
-  // Optimistic local writes have a null createdAt until the server responds; keep them visible.
   if (!createdMs) return true
   return Date.now() - createdMs <= hours * 60 * 60 * 1000
 }
 
-// Enough neighbours confirmed service is back, so stop showing the outage.
 export function isResolved(report) {
   const restored = report.restoredCount ?? 0
   return restored >= RESTORED_THRESHOLD && restored > (report.stillOutCount ?? 0)
+}
+
+/**
+ * Persists a lightweight snapshot of active reports to localStorage so the
+ * dashboard immediately renders cached reports when opened offline.
+ */
+function writeCachedReports(reports) {
+  try {
+    const serializable = reports.map((report) => ({
+      id: report.id,
+      uid: report.uid,
+      type: report.type,
+      lat: report.lat,
+      lng: report.lng,
+      geohash: report.geohash,
+      stillOutCount: report.stillOutCount ?? 0,
+      restoredCount: report.restoredCount ?? 0,
+      details: report.details ?? undefined,
+      createdAtMs: toMillis(report.createdAt) || Date.now(),
+    }))
+    localStorage.setItem(REPORTS_CACHE_KEY, JSON.stringify(serializable))
+  } catch {
+    // Ignore storage quota or private-browsing errors
+  }
+}
+
+export function readCachedReports() {
+  try {
+    const raw = localStorage.getItem(REPORTS_CACHE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((item) => REPORT_TYPES[item.type] && item.lat != null)
+      .map((item) => ({
+        ...item,
+        createdAt: item.createdAtMs
+          ? Timestamp.fromMillis(item.createdAtMs)
+          : null,
+      }))
+  } catch {
+    return []
+  }
 }
 
 /**
@@ -153,10 +196,6 @@ export async function createReport({ uid, type, lat, lng, details }) {
   return reportRef.id
 }
 
-/**
- * Deletes a single report document (permitted for the report's author, an
- * admin, or when an unverified report is older than 24 hours).
- */
 export async function deleteReport(reportId) {
   if (!db) throw new Error('Firebase is not configured')
   if (!reportId) throw new Error('Missing report ID')
@@ -175,10 +214,6 @@ export async function deleteReport(reportId) {
   }
 }
 
-/**
- * Automatically deletes any unverified reports that have been up for longer
- * than 24 hours.
- */
 export async function purgeExpiredUnverifiedReports(expiredReports) {
   if (!db || !expiredReports?.length) return
   await Promise.allSettled(
@@ -188,9 +223,6 @@ export async function purgeExpiredUnverifiedReports(expiredReports) {
   )
 }
 
-/**
- * One vote per user per report.
- */
 export async function voteOnReport({ reportId, uid, value }) {
   if (!db) throw new Error('Firebase is not configured')
   if (!uid) throw new Error('Not signed in yet')
@@ -239,6 +271,12 @@ function mapSnapshot(snapshot) {
 }
 
 export function subscribeToReports(onReports, onError) {
+  // Emit cached reports immediately so offline users see the latest known state.
+  const cached = readCachedReports()
+  if (cached.length > 0) {
+    onReports(cached)
+  }
+
   if (!db) return () => {}
 
   const reportsQuery = query(
@@ -249,7 +287,14 @@ export function subscribeToReports(onReports, onError) {
 
   return onSnapshot(
     reportsQuery,
-    (snapshot) => onReports(mapSnapshot(snapshot)),
+    { includeMetadataChanges: true },
+    (snapshot) => {
+      const next = mapSnapshot(snapshot)
+      if (next.length > 0 || !snapshot.metadata.fromCache) {
+        writeCachedReports(next)
+        onReports(next)
+      }
+    },
     (error) => {
       if (isPermissionError(error)) {
         try {
@@ -275,6 +320,7 @@ export function subscribeToUserReports(uid, onReports, onError) {
 
   return onSnapshot(
     userQuery,
+    { includeMetadataChanges: true },
     (snapshot) => {
       const sorted = snapshot.docs
         .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))

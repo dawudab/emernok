@@ -93,6 +93,7 @@ function ToggleRow({ icon: Icon, label, checked, onChange }) {
 }
 
 function AppMenu({
+  onOpenWalkthrough,
   onOpenCommunity,
   onOpenProfile,
   onOpenLegend,
@@ -153,6 +154,17 @@ function AppMenu({
 
   return (
     <div className="relative flex shrink-0 items-center gap-1.5">
+      {/* "?" button for interactive walkthrough of vision, purpose & features */}
+      <button
+        type="button"
+        onClick={onOpenWalkthrough}
+        aria-label={t('walkthrough.title')}
+        title={t('walkthrough.title')}
+        className="icon-button size-11 font-mono text-base font-bold outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-white"
+      >
+        ?
+      </button>
+
       <button
         type="button"
         onClick={toggleTheme}
@@ -206,8 +218,22 @@ function AppMenu({
                 </p>
               </div>
 
-              {/* Settings section: Regions (on by default), Top Fuel Stations (off by default), and Verification Filter in Settings only */}
-              <div className="border-b border-black/5 py-2 dark:border-white/10">
+              {/* Your Profile in the dropdown menu (replaces My reports) */}
+              <MenuRow
+                icon={MENU_ICONS.profile}
+                label={t('menu.yourProfile')}
+                hint={t('menu.yourProfileHint')}
+                onClick={choose(onOpenProfile)}
+              />
+              <MenuRow
+                icon={MENU_ICONS.community}
+                label={t('menu.community')}
+                hint={t('menu.communityHint', { km: COMMUNITY_RADIUS_KM })}
+                onClick={choose(onOpenCommunity)}
+              />
+
+              {/* Settings section */}
+              <div className="border-t border-b border-black/5 py-2 dark:border-white/10">
                 <div className="flex items-center gap-2 px-4 py-1">
                   <SlidersHorizontal
                     size={12}
@@ -233,7 +259,6 @@ function AppMenu({
                   onChange={onToggleStations}
                 />
 
-                {/* Verification Filter setting inside Settings only */}
                 <div className="px-4 pt-2 pb-1.5">
                   <div className="flex items-center gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-300">
                     <ShieldCheck
@@ -270,21 +295,6 @@ function AppMenu({
                   </div>
                 </div>
               </div>
-
-              <MenuRow
-                icon={MENU_ICONS.community}
-                label={t('menu.community')}
-                hint={t('menu.communityHint', { km: COMMUNITY_RADIUS_KM })}
-                onClick={choose(onOpenCommunity)}
-              />
-              <MenuRow
-                icon={MENU_ICONS.profile}
-                label={isAnonymous ? t('common.signIn') : t('menu.myReports')}
-                hint={isAnonymous ? t('menu.signInHint') : undefined}
-                onClick={choose(onOpenProfile)}
-              />
-
-              <div className="border-t border-black/5 dark:border-white/10" />
 
               <MenuRow
                 icon={MENU_ICONS.official}
@@ -341,12 +351,12 @@ function AppMenu({
                 className="mt-2 grid grid-cols-3 gap-1.5"
               >
                 {LANGUAGES.map((item) => {
-                  const active = item.code === lang
+                  const active = item.id === lang
                   return (
                     <button
-                      key={item.code}
+                      key={item.id}
                       type="button"
-                      onClick={() => setLang(item.code)}
+                      onClick={() => setLang(item.id)}
                       aria-pressed={active}
                       className={`min-h-11 rounded-full px-2 text-xs font-semibold transition-all duration-300 ${
                         active

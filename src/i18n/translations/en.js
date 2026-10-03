@@ -276,4 +276,67 @@ export default {
   'report.submitNow': 'Submit Report',
   'report.delete': 'Delete report',
   'notice.reportDeleted': 'Report deleted.',
+  'profile.statTotal': 'Reported',
+  'profile.statVerified': 'Verified',
+  'profile.statResolved': 'Resolved',
+  'profile.statusResolved': 'Resolved',
+  'profile.statusVerified': 'Verified',
+  'profile.statusPending': 'Unconfirmed ({count}/{total})',
+  'profile.viewOnMap': 'Map',
+  'menu.yourProfile': 'Your Profile',
+  'menu.yourProfileHint': 'Reported outages & status',
+
+  'walkthrough.badge': 'Interactive Guide',
+  'walkthrough.title': 'Vision, Purpose & How to Use',
+  'walkthrough.tab.overview': 'Overview',
+  'walkthrough.tab.purpose': 'Purpose',
+  'walkthrough.tab.vision': 'Vision',
+  'walkthrough.tab.howto': 'How to Use',
+  'walkthrough.prev': 'Back',
+  'walkthrough.next': 'Next',
+  'walkthrough.done': 'Explore Map',
+
+  'walkthrough.overview.lead':
+    'Decentralizing infrastructure awareness across Nouakchott.',
+  'walkthrough.overview.body':
+    '“Nouakchott Energy Map” or N.E.M. decentralizes infrastructure awareness in Nouakchott, transforming unpredictable utility failures into visible, manageable data. By shifting the power of information from slow official channels to the everyday people on the ground, the system prevents a localized power cut from cascading into a household crisis.',
+  'walkthrough.stat.power': 'Live Grid',
+  'walkthrough.stat.fuel': 'Top Stations',
+  'walkthrough.stat.regions': '9 Regions',
+
+  'walkthrough.purpose.heading': 'The Purpose: Community Resilience',
+  'walkthrough.purpose.sub':
+    'The core objective is to give time and agency back to the residents.',
+  'walkthrough.purpose.p1Title': 'Protecting Essentials',
+  'walkthrough.purpose.p1Body':
+    'When power drops for multiple days, refrigerated food spoils, medicine goes bad, and water pumps stop working. By visualizing a verified outage as it spreads across neighborhoods, families can pivot instantly—securing water or rerouting to working gas stations before localized panic drains the supply.',
+  'walkthrough.purpose.p2Title': 'Bypassing Bureaucracy',
+  'walkthrough.purpose.p2Body':
+    'Centralized utility updates often lag behind reality. This system relies entirely on peer-to-peer verification, turning residents into a distributed, real-time sensor network that doesn’t wait for a government press release to know the lights are out.',
+  'walkthrough.purpose.p3Title': 'Zero-Friction Accessibility',
+  'walkthrough.purpose.p3Body':
+    'Emergencies require immediate action. Eliminating app store downloads, user accounts, and passwords ensures that anyone with a browser can drop a pin in seconds.',
+
+  'walkthrough.vision.heading': 'The Vision: A Digital Nervous System for the City',
+  'walkthrough.vision.lead':
+    'The app is designed to feel less like a traditional social network and more like a high-end, vital instrument for the city.',
+  'walkthrough.vision.civicTitle': 'A Foundation for Civic Tech',
+  'walkthrough.vision.civicBody':
+    'Built on a lightweight React and Firebase architecture, the system is designed to handle sudden traffic spikes when a grid sector fails. Because it maps real-time working infrastructure, it lays the groundwork for future expansions—such as integrating with local on-demand delivery platforms to route emergency supplies, food, or resources to neighborhoods currently in the dark.',
+  'walkthrough.vision.closing':
+    'Ultimately, the app serves as a communal source of truth. It validates the frustration of frequent outages by making them visible, while simultaneously providing the exact data everyday people need to navigate them safely.',
+
+  'walkthrough.howto.heading': 'How to Use & Key Features',
+  'walkthrough.howto.f1Title': '1. Report a Power Outage (Corner ⚡ Button)',
+  'walkthrough.howto.f1Body':
+    'Tap the lightning bolt in the bottom-right corner to automatically capture your GPS coordinates, add optional details, and post a live report.',
+  'walkthrough.howto.f2Title': '2. Click Any Region for Live Grid & Fuel Stats',
+  'walkthrough.howto.f2Body':
+    'Nouakchott’s 9 regions are carved seamlessly across the map. Click any region to see its overall status, Grid Power Level (%), and top fuel stations.',
+  'walkthrough.howto.f3Title': '3. Top Fuel Stations & Turn-by-Turn Directions',
+  'walkthrough.howto.f3Body':
+    'Click any fuel station pin to report Has Gas or No Gas, check review ratings, or tap Get Directions to open navigation in your maps app.',
+  'walkthrough.howto.f4Title': '4. Your Profile & Peer Verification',
+  'walkthrough.howto.f4Body':
+    '3 distinct neighbours within 500m verify an outage (turning it red). Unverified reports older than 24h auto-delete. Open Your Profile from the menu to track or delete your reports.',
 }

@@ -27,8 +27,6 @@ export const STATUS_COLORS = {
 
 /**
  * Icon and accent colours for the action bar, legend and profile list.
- * `accentLight` is a darker shade for light backgrounds where the neon accent
- * would otherwise have poor contrast; see accentFor() below.
  */
 export const REPORT_TYPES = {
   power: {
@@ -63,124 +61,145 @@ export function accentFor(type, isDark) {
 
 export const REPORT_TYPE_LIST = [REPORT_TYPES.power]
 
-// Nouakchott's 9 moughataas (regions), each with its center, radius, and
-// bounding polygon for region-level power & fuel status visualization.
+/**
+ * Seamless tessellation of Nouakchott's 9 moughataas (regions).
+ * Adjacent regions share exact boundary vertices so there is zero empty space
+ * between them on the map:
+ *
+ * Shared latitude lines & junction vertices:
+ *  - North edge: 18.148
+ *  - Upper junction: 18.108 (separating Teyarett / Dar Naim from Ksar / Toujounine)
+ *  - Coastal West split: 18.084 (separating Tevragh Zeina from Sebkha)
+ *  - Central junction: 18.075 (separating Ksar from Arafat)
+ *  - Lower-West split: 18.062 (separating Sebkha from El Mina)
+ *  - South junction: 18.034 (separating El Mina / Arafat / Toujounine from Riyad)
+ *  - Far South edge: 17.988
+ */
 export const NEIGHBOURHOODS = [
   {
     id: 'tevragh-zeina',
     name: 'Tevragh Zeina',
-    lat: 18.103,
-    lng: -15.982,
-    radiusM: 2600,
-    polygon: [
-      [18.122, -16.005],
-      [18.122, -15.968],
-      [18.084, -15.968],
-      [18.084, -16.005],
-    ],
-  },
-  {
-    id: 'ksar',
-    name: 'Ksar',
-    lat: 18.091,
-    lng: -15.956,
-    radiusM: 2200,
-    polygon: [
-      [18.108, -15.968],
-      [18.108, -15.943],
-      [18.075, -15.943],
-      [18.075, -15.968],
-    ],
-  },
-  {
-    id: 'sebkha',
-    name: 'Sebkha',
-    lat: 18.072,
-    lng: -15.989,
-    radiusM: 2200,
-    polygon: [
-      [18.084, -16.008],
-      [18.084, -15.973],
-      [18.062, -15.973],
-      [18.062, -16.008],
-    ],
-  },
-  {
-    id: 'el-mina',
-    name: 'El Mina',
-    lat: 18.054,
-    lng: -15.975,
-    radiusM: 2500,
-    polygon: [
-      [18.062, -16.002],
-      [18.062, -15.958],
-      [18.036, -15.958],
-      [18.036, -16.002],
-    ],
-  },
-  {
-    id: 'arafat',
-    name: 'Arafat',
-    lat: 18.046,
-    lng: -15.947,
-    radiusM: 2600,
-    polygon: [
-      [18.075, -15.958],
-      [18.075, -15.928],
-      [18.032, -15.928],
-      [18.032, -15.958],
-    ],
-  },
-  {
-    id: 'riyad',
-    name: 'Riyad',
-    lat: 18.012,
-    lng: -15.945,
+    lat: 18.106,
+    lng: -15.986,
     radiusM: 2800,
     polygon: [
-      [18.032, -15.968],
-      [18.032, -15.922],
-      [17.988, -15.922],
-      [17.988, -15.968],
-    ],
-  },
-  {
-    id: 'dar-naim',
-    name: 'Dar Naim',
-    lat: 18.113,
-    lng: -15.928,
-    radiusM: 2600,
-    polygon: [
-      [18.132, -15.943],
-      [18.132, -15.908],
-      [18.095, -15.908],
-      [18.095, -15.943],
+      [18.148, -16.012],
+      [18.148, -15.975],
+      [18.108, -15.968],
+      [18.084, -15.968],
+      [18.084, -16.012],
     ],
   },
   {
     id: 'teyarett',
     name: 'Teyarett',
     lat: 18.128,
-    lng: -15.962,
+    lng: -15.957,
     radiusM: 2500,
     polygon: [
-      [18.148, -15.978],
-      [18.148, -15.943],
-      [18.108, -15.943],
-      [18.108, -15.978],
+      [18.148, -15.975],
+      [18.148, -15.942],
+      [18.108, -15.942],
+      [18.108, -15.968],
+    ],
+  },
+  {
+    id: 'dar-naim',
+    name: 'Dar Naim',
+    lat: 18.126,
+    lng: -15.916,
+    radiusM: 2800,
+    polygon: [
+      [18.148, -15.942],
+      [18.148, -15.882],
+      [18.108, -15.882],
+      [18.108, -15.942],
+    ],
+  },
+  {
+    id: 'sebkha',
+    name: 'Sebkha',
+    lat: 18.073,
+    lng: -15.99,
+    radiusM: 2200,
+    polygon: [
+      [18.084, -16.012],
+      [18.084, -15.968],
+      [18.075, -15.968],
+      [18.062, -15.968],
+      [18.062, -16.012],
+    ],
+  },
+  {
+    id: 'ksar',
+    name: 'Ksar',
+    lat: 18.091,
+    lng: -15.955,
+    radiusM: 2200,
+    polygon: [
+      [18.108, -15.968],
+      [18.108, -15.942],
+      [18.108, -15.932],
+      [18.075, -15.932],
+      [18.075, -15.968],
+      [18.084, -15.968],
     ],
   },
   {
     id: 'toujounine',
     name: 'Toujounine',
-    lat: 18.078,
+    lat: 18.074,
     lng: -15.906,
-    radiusM: 2800,
+    radiusM: 3000,
     polygon: [
-      [18.095, -15.928],
-      [18.095, -15.878],
-      [18.055, -15.878],
-      [18.055, -15.928],
+      [18.108, -15.932],
+      [18.108, -15.882],
+      [18.034, -15.882],
+      [18.034, -15.926],
+      [18.075, -15.932],
+    ],
+  },
+  {
+    id: 'el-mina',
+    name: 'El Mina',
+    lat: 18.048,
+    lng: -15.986,
+    radiusM: 2500,
+    polygon: [
+      [18.062, -16.012],
+      [18.062, -15.968],
+      [18.075, -15.968],
+      [18.075, -15.96],
+      [18.034, -15.96],
+      [18.034, -16.012],
+    ],
+  },
+  {
+    id: 'arafat',
+    name: 'Arafat',
+    lat: 18.054,
+    lng: -15.944,
+    radiusM: 2600,
+    polygon: [
+      [18.075, -15.96],
+      [18.075, -15.932],
+      [18.034, -15.926],
+      [18.034, -15.96],
+    ],
+  },
+  {
+    id: 'riyad',
+    name: 'Riyad',
+    lat: 18.011,
+    lng: -15.948,
+    radiusM: 3000,
+    polygon: [
+      [18.034, -16.012],
+      [18.034, -15.96],
+      [18.034, -15.926],
+      [18.034, -15.882],
+      [17.988, -15.882],
+      [17.988, -16.012],
     ],
   },
 ]
@@ -225,7 +244,7 @@ export const GAS_STATIONS = [
     rating: 4.8,
     reviews: 310,
     lat: 18.0858,
-    lng: -15.9698,
+    lng: -15.9648,
   },
   {
     id: 'shell-madrid',
@@ -235,7 +254,7 @@ export const GAS_STATIONS = [
     area: 'Ksar · Carrefour Madrid',
     rating: 4.7,
     reviews: 264,
-    lat: 18.0762,
+    lat: 18.0782,
     lng: -15.9554,
   },
   {
@@ -246,7 +265,7 @@ export const GAS_STATIONS = [
     area: 'Sebkha · Marché Capitale',
     rating: 4.6,
     reviews: 198,
-    lat: 18.0782,
+    lat: 18.0742,
     lng: -15.9845,
   },
   {
@@ -257,8 +276,8 @@ export const GAS_STATIONS = [
     area: 'El Mina · Route du Port',
     rating: 4.7,
     reviews: 215,
-    lat: 18.0574,
-    lng: -15.9715,
+    lat: 18.0524,
+    lng: -15.9755,
   },
   {
     id: 'total-arafat',
@@ -302,7 +321,7 @@ export const GAS_STATIONS = [
     rating: 4.8,
     reviews: 231,
     lat: 18.1245,
-    lng: -15.9685,
+    lng: -15.9585,
   },
   {
     id: 'star-oil-dar-naim',
@@ -312,8 +331,8 @@ export const GAS_STATIONS = [
     area: 'Dar Naim · Carrefour Tensoueilim',
     rating: 4.6,
     reviews: 167,
-    lat: 18.1165,
-    lng: -15.9355,
+    lat: 18.1185,
+    lng: -15.9255,
   },
   {
     id: 'total-toujounine',

@@ -1,6 +1,13 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
-import { doc, getDocFromServer, getFirestore } from 'firebase/firestore'
+import {
+  doc,
+  getDocFromServer,
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore'
 import appletConfig from '../firebase-applet-config.json'
 
 export const firebaseConfig = {
@@ -26,9 +33,25 @@ export const isFirebaseConfigured = Boolean(
 
 export const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null
 export const auth = app ? getAuth(app) : null
-export const db = app
-  ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
-  : null
+
+function initOfflineFirestore() {
+  if (!app) return null
+  try {
+    return initializeFirestore(
+      app,
+      {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager(),
+        }),
+      },
+      firebaseConfig.firestoreDatabaseId,
+    )
+  } catch {
+    return getFirestore(app, firebaseConfig.firestoreDatabaseId)
+  }
+}
+
+export const db = initOfflineFirestore()
 
 export const OperationType = {
   CREATE: 'create',

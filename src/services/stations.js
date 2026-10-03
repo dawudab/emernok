@@ -10,6 +10,7 @@ import {
 import { OperationType, db, handleFirestoreError } from '../firebaseConfig'
 
 const STATION_STATUS_COLLECTION = 'stationStatus'
+const STATION_CACHE_KEY = 'nem:cachedStations:v1'
 
 export const STATUS_HAS_GAS = 'has_gas'
 export const STATUS_NO_GAS = 'no_gas'
@@ -19,6 +20,32 @@ function isPermissionError(error) {
     error?.code === 'permission-denied' ||
     error?.message?.includes('Missing or insufficient permissions')
   )
+}
+
+function writeCachedStationStatuses(map) {
+  try {
+    const serializable = {}
+    for (const [id, data] of Object.entries(map)) {
+      serializable[id] = {
+        stationId: data.stationId ?? id,
+        status: data.status,
+        hasGasCount: data.hasGasCount ?? 0,
+        noGasCount: data.noGasCount ?? 0,
+      }
+    }
+    localStorage.setItem(STATION_CACHE_KEY, JSON.stringify(serializable))
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+export function readCachedStationStatuses() {
+  try {
+    const raw = localStorage.getItem(STATION_CACHE_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
 }
 
 export async function reportStationGasStatus({ stationId, uid, status }) {
@@ -69,18 +96,27 @@ export async function reportStationGasStatus({ stationId, uid, status }) {
 }
 
 export function subscribeToStationStatuses(onStatuses, onError) {
+  const cached = readCachedStationStatuses()
+  if (Object.keys(cached).length > 0) {
+    onStatuses(cached)
+  }
+
   if (!db) return () => {}
 
   const q = query(collection(db, STATION_STATUS_COLLECTION), limit(200))
 
   return onSnapshot(
     q,
+    { includeMetadataChanges: true },
     (snapshot) => {
       const map = {}
       for (const docSnap of snapshot.docs) {
         map[docSnap.id] = docSnap.data()
       }
-      onStatuses(map)
+      if (Object.keys(map).length > 0 || !snapshot.metadata.fromCache) {
+        writeCachedStationStatuses(map)
+        onStatuses(map)
+      }
     },
     (error) => {
       if (isPermissionError(error)) {

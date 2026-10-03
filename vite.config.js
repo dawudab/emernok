@@ -15,12 +15,14 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'auto',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Nouakchott Utility Alerts',
-        short_name: 'Emernok',
+        id: '/',
+        name: 'N.E.M. — Nouakchott Energy Map',
+        short_name: 'N.E.M.',
         description:
-          'Live community reports of power, water and fuel outages in Nouakchott.',
+          'Live community reports of power outages and top fuel station availability in Nouakchott.',
         lang: 'en',
         theme_color: '#0f172a',
         background_color: '#0f172a',
@@ -29,8 +31,18 @@ export default defineConfig({
         start_url: '/',
         scope: '/',
         icons: [
-          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+          {
+            src: 'pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any',
+          },
           {
             src: 'pwa-512x512.png',
             sizes: '512x512',
@@ -40,28 +52,52 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
+        navigateFallback: '/index.html',
         runtimeCaching: [
           {
-            // Map tiles are the heaviest payload on a slow connection. Both
-            // themes are cached: switching at dusk should not re-download the
-            // city.
+            // Map tiles are cached aggressively so the Nouakchott basemap works
+            // offline and across light/dark theme switches.
             urlPattern: /^https:\/\/[a-d]\.basemaps\.cartocdn\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'carto-tiles',
-              expiration: { maxEntries: 800, maxAgeSeconds: 60 * 60 * 24 * 14 },
+              cacheName: 'nem-carto-tiles',
+              expiration: {
+                maxEntries: 1200,
+                maxAgeSeconds: 60 * 60 * 24 * 30,
+              },
               cacheableResponse: { statuses: [0, 200] },
             },
           },
           {
-            // Webfonts are render-blocking for text, so they must survive
-            // offline and a flaky connection.
+            // Google Fonts stylesheets & font files
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'google-fonts',
-              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheName: 'nem-google-fonts',
+              expiration: {
+                maxEntries: 30,
+                maxAgeSeconds: 60 * 60 * 24 * 365,
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Firestore REST / API GET requests fall back to cache on poor or
+            // disconnected connections after 4 seconds.
+            urlPattern: /^https:\/\/firestore\.googleapis\.com\/.*/i,
+            handler: 'NetworkFirst',
+            method: 'GET',
+            options: {
+              cacheName: 'nem-firestore-cache',
+              networkTimeoutSeconds: 4,
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7,
+              },
               cacheableResponse: { statuses: [0, 200] },
             },
           },

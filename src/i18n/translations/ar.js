@@ -266,4 +266,67 @@ export default {
   'report.submitNow': 'إرسال البلاغ',
   'report.delete': 'حذف البلاغ',
   'notice.reportDeleted': 'تم حذف البلاغ.',
+  'profile.statTotal': 'البلاغات',
+  'profile.statVerified': 'مؤكدة',
+  'profile.statResolved': 'عادت الخدمة',
+  'profile.statusResolved': 'عادت الخدمة',
+  'profile.statusVerified': 'مؤكدة',
+  'profile.statusPending': 'قيد التأكيد ({count}/{total})',
+  'profile.viewOnMap': 'الخريطة',
+  'menu.yourProfile': 'ملفك الشخصي',
+  'menu.yourProfileHint': 'بلاغاتك وحالة كل بلاغ',
+
+  'walkthrough.badge': 'دليل تفاعلي',
+  'walkthrough.title': 'الرؤية والهدف وطريقة الاستخدام',
+  'walkthrough.tab.overview': 'نظرة عامة',
+  'walkthrough.tab.purpose': 'الهدف',
+  'walkthrough.tab.vision': 'الرؤية',
+  'walkthrough.tab.howto': 'طريقة الاستخدام',
+  'walkthrough.prev': 'السابق',
+  'walkthrough.next': 'التالي',
+  'walkthrough.done': 'استكشف الخريطة',
+
+  'walkthrough.overview.lead':
+    'لامركزية الوعي بالبنية التحتية في نواكشوط.',
+  'walkthrough.overview.body':
+    'تعمل «خريطة الطاقة في نواكشوط» (N.E.M.) على تحويل انقطاعات الكهرباء والوقود غير المتوقعة إلى بيانات مرئية يسهل التعامل معها، مما يمنح السكان المعلومة الفورية لتفادي تحول الانقطاع المحلي إلى أزمة منزلية.',
+  'walkthrough.stat.power': 'الشبكة مباشرة',
+  'walkthrough.stat.fuel': 'أفضل المحطات',
+  'walkthrough.stat.regions': '9 مقاطعات',
+
+  'walkthrough.purpose.heading': 'الهدف: مرونة المجتمع',
+  'walkthrough.purpose.sub':
+    'الهدف الأساسي هو إعادة الوقت والقدرة على التصرف للسكان.',
+  'walkthrough.purpose.p1Title': 'حماية الاحتياجات الأساسية',
+  'walkthrough.purpose.p1Body':
+    'عند انقطاع الكهرباء لأيام، تتضرر الأغذية المبردة والأدوية وتتوقف مضخات المياه. برؤية الانقطاعات المؤكدة فور انتشارها، يمكن للعائلات التحرك فورًا والتوجه إلى محطات الوقود العاملة.',
+  'walkthrough.purpose.p2Title': 'تجاوز البطء الرسمي',
+  'walkthrough.purpose.p2Body':
+    'تعتمد المنصة على التحقق المتبادل بين الجيران، مما يحول السكان إلى شبكة استشعار فورية في الوقت الفعلي.',
+  'walkthrough.purpose.p3Title': 'وصول فوري بدون تعقيد',
+  'walkthrough.purpose.p3Body':
+    'تتطلب الطوارئ سرعة التصرف؛ لذا تعمل المنصة مباشرة عبر المتصفح دون الحاجة لتنزيل متاجر تطبيقات أو كلمات مرور.',
+
+  'walkthrough.vision.heading': 'الرؤية: جهاز عصبي رقمي للمدينة',
+  'walkthrough.vision.lead':
+    'صُمم التطبيق ليكون أداة حيوية عالية الدقة لمدينة نواكشوط وليس مجرد شبكة اجتماعية تقليدية.',
+  'walkthrough.vision.civicTitle': 'أساس للتقنية المدنية (Civic Tech)',
+  'walkthrough.vision.civicBody':
+    'بفضل بنية React وFirebase الخفيفة والقادرة على تحمل أوقات الذروة، يمهد النظام الطريق للتكامل مستقبلاً مع خدمات التوصيل لتوجيه الإمدادات الطارئة للأحياء المتضررة.',
+  'walkthrough.vision.closing':
+    'يمثل التطبيق مصدر حقيقة مجتمعيًا يوثق الانقطاعات ويوفر البيانات الدقيقة للتعامل معها بأمان.',
+
+  'walkthrough.howto.heading': 'طريقة الاستخدام والمميزات',
+  'walkthrough.howto.f1Title': '1. الإبلاغ عن انقطاع الكهرباء (زر ⚡ في الزاوية)',
+  'walkthrough.howto.f1Body':
+    'اضغط على زر البرق في الزاوية السفلية لالتقاط موقعك تلقائيًا وإضافة تفاصيل البلاغ ونشره.',
+  'walkthrough.howto.f2Title': '2. اضغط على أي مقاطعة لعرض الإحصائيات',
+  'walkthrough.howto.f2Body':
+    'مقاطعات نواكشوط التسع متصلة بدون فراغات؛ اضغط على أي مقاطعة لمعرفة حالتها ومستوى الكهرباء (%) وأفضل محطات الوقود فيها.',
+  'walkthrough.howto.f3Title': '3. أفضل محطات الوقود والاتجاهات',
+  'walkthrough.howto.f3Body':
+    'اضغط على أي محطة وقود لتحديد توفر الوقود من عدمه، ومشاهدة التقييمات، أو فتح الاتجاهات في تطبيق الخرائط.',
+  'walkthrough.howto.f4Title': '4. ملفك الشخصي والتحقق المجتمعي',
+  'walkthrough.howto.f4Body':
+    'يتحقق البلاغ بمشاركة 3 جيران ضمن 500 متر، وتُحذف البلاغات غير المؤكدة بعد 24 ساعة تلقائيًا. افتح «ملفك الشخصي» من القائمة لمتابعة بلاغاتك أو حذفها.',
 }

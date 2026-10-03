@@ -100,6 +100,8 @@ export default {
 
   'signIn.title': 'سجّل الدخول للإبلاغ والنشر والتصويت',
   'signIn.subtitle': 'تبقى بلاغاتك السابقة معك عند تسجيل الدخول من هذا الجهاز.',
+  'signIn.google': 'المتابعة باستخدام Google',
+  'signIn.or': 'أو',
   'signIn.email': 'البريد الإلكتروني',
   'signIn.phone': 'الهاتف',
   'signIn.emailLabel': 'عنوان البريد الإلكتروني',

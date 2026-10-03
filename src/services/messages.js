@@ -11,7 +11,7 @@ import {
   serverTimestamp,
   startAt,
 } from 'firebase/firestore'
-import { db } from '../firebaseConfig'
+import { OperationType, db, handleFirestoreError } from '../firebaseConfig'
 import {
   COMMUNITY_RADIUS_KM,
   DAILY_MESSAGE_LIMIT,
@@ -31,6 +31,13 @@ function toMillis(value) {
   return value?.toMillis?.() ?? 0
 }
 
+function isPermissionError(error) {
+  return (
+    error?.code === 'permission-denied' ||
+    error?.message?.includes('Missing or insufficient permissions')
+  )
+}
+
 export async function sendMessage({ uid, text, lat, lng }) {
   if (!db) throw new Error('Firebase is not configured')
   if (!uid) throw new Error('Not signed in yet')
@@ -44,44 +51,54 @@ export async function sendMessage({ uid, text, lat, lng }) {
   const statsRef = doc(db, CHAT_STATS_COLLECTION, uid)
   const messageRef = doc(collection(db, MESSAGES_COLLECTION))
 
-  await runTransaction(db, async (transaction) => {
-    const statsSnap = await transaction.get(statsRef)
-    const now = Date.now()
+  try {
+    await runTransaction(db, async (transaction) => {
+      const statsSnap = await transaction.get(statsRef)
+      const now = Date.now()
 
-    let dailyCount = 1
-    let dayStartedAt = serverTimestamp()
+      let dailyCount = 1
+      let dayStartedAt = serverTimestamp()
 
-    if (statsSnap.exists()) {
-      const stats = statsSnap.data()
-      const sinceLast = now - toMillis(stats.lastMessageAt)
-      if (sinceLast < MESSAGE_COOLDOWN_SECONDS * 1000) {
-        const wait = Math.ceil((MESSAGE_COOLDOWN_SECONDS * 1000 - sinceLast) / 1000)
-        throw new RateLimitError(`Please wait ${wait}s before posting again.`)
-      }
-      if (now - toMillis(stats.dayStartedAt) < DAY_MS) {
-        if (stats.dailyCount >= DAILY_MESSAGE_LIMIT) {
-          throw new RateLimitError('Daily message limit reached.')
+      if (statsSnap.exists()) {
+        const stats = statsSnap.data()
+        const sinceLast = now - toMillis(stats.lastMessageAt)
+        if (sinceLast < MESSAGE_COOLDOWN_SECONDS * 1000) {
+          const wait = Math.ceil(
+            (MESSAGE_COOLDOWN_SECONDS * 1000 - sinceLast) / 1000,
+          )
+          throw new RateLimitError(`Please wait ${wait}s before posting again.`)
         }
-        dailyCount = stats.dailyCount + 1
-        dayStartedAt = stats.dayStartedAt
+        if (now - toMillis(stats.dayStartedAt) < DAY_MS) {
+          if (stats.dailyCount >= DAILY_MESSAGE_LIMIT) {
+            throw new RateLimitError('Daily message limit reached.')
+          }
+          dailyCount = stats.dailyCount + 1
+          dayStartedAt = stats.dayStartedAt
+        }
       }
-    }
 
-    transaction.set(statsRef, {
-      uid,
-      lastMessageAt: serverTimestamp(),
-      dailyCount,
-      dayStartedAt,
+      transaction.set(statsRef, {
+        uid,
+        lastMessageAt: serverTimestamp(),
+        dailyCount,
+        dayStartedAt,
+      })
+      transaction.set(messageRef, {
+        uid,
+        text: trimmed,
+        lat,
+        lng,
+        geohash: geohashForLocation([lat, lng]),
+        createdAt: serverTimestamp(),
+      })
     })
-    transaction.set(messageRef, {
-      uid,
-      text: trimmed,
-      lat,
-      lng,
-      geohash: geohashForLocation([lat, lng]),
-      createdAt: serverTimestamp(),
-    })
-  })
+  } catch (error) {
+    if (error instanceof RateLimitError) throw error
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.CREATE, MESSAGES_COLLECTION)
+    }
+    throw error
+  }
 }
 
 /**
@@ -106,7 +123,10 @@ export function subscribeToNearbyMessages(center, onMessages, onError) {
       for (const message of docs) {
         if (message.lat == null) continue
         const distance =
-          distanceBetween([center.lat, center.lng], [message.lat, message.lng]) * 1000
+          distanceBetween(
+            [center.lat, center.lng],
+            [message.lat, message.lng],
+          ) * 1000
         if (distance > radiusM) continue
         // Pending writes have a null timestamp; keep them so the author sees
         // their own message immediately.
@@ -135,11 +155,24 @@ export function subscribeToNearbyMessages(center, onMessages, onError) {
       (snapshot) => {
         perBound.set(
           index,
-          snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })),
+          snapshot.docs.map((docSnap) => ({
+            id: docSnap.id,
+            ...docSnap.data(),
+          })),
         )
         publish()
       },
-      onError,
+      (error) => {
+        if (isPermissionError(error)) {
+          try {
+            handleFirestoreError(error, OperationType.LIST, MESSAGES_COLLECTION)
+          } catch (wrappedError) {
+            onError?.(wrappedError)
+            return
+          }
+        }
+        onError?.(error)
+      },
     ),
   )
 

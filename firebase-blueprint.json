@@ -1,0 +1,404 @@
+{
+  "entities": {
+    "Admin": {
+      "title": "Admin",
+      "description": "Administrator / Moderator marker document",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Moderator user ID",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        }
+      },
+      "required": ["uid"]
+    },
+    "Role": {
+      "title": "Role",
+      "description": "Approved utility worker / official reporter role",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["official"],
+          "maxLength": 20
+        },
+        "org": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "approved": {
+          "type": "boolean"
+        },
+        "approvedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "approvedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "role", "org", "name", "approved", "approvedBy", "approvedAt"]
+    },
+    "RoleRequest": {
+      "title": "RoleRequest",
+      "description": "Self-service utility worker application awaiting moderation",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "org": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "proof": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"],
+          "maxLength": 20
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reviewedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "reviewedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "org", "name", "title", "proof", "status", "createdAt"]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "Official utility outage notice published for a neighbourhood",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "org": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "area": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "areaId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lng": {
+          "type": "number"
+        },
+        "geohash": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "org", "area", "areaId", "lat", "lng", "geohash", "text", "createdAt", "expiresAt"]
+    },
+    "SourceDraft": {
+      "title": "SourceDraft",
+      "description": "Imported outage notice draft awaiting moderator review",
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "org": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "url": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "areaId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "published", "discarded"],
+          "maxLength": 20
+        },
+        "fetchedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reviewedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "reviewedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["source", "org", "text", "areaId", "status", "fetchedAt"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Community outage report pin",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["power", "water", "fuel"],
+          "maxLength": 20
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lng": {
+          "type": "number"
+        },
+        "geohash": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "stillOutCount": {
+          "type": "number"
+        },
+        "restoredCount": {
+          "type": "number"
+        }
+      },
+      "required": ["uid", "type", "lat", "lng", "geohash", "createdAt", "stillOutCount", "restoredCount"]
+    },
+    "ReportVote": {
+      "title": "ReportVote",
+      "description": "Single vote per user on an outage report",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "value": {
+          "type": "string",
+          "enum": ["still_out", "restored"],
+          "maxLength": 20
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "value", "createdAt"]
+    },
+    "UserStats": {
+      "title": "UserStats",
+      "description": "Per-user report rate-limit counter",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "lastReportAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "dailyCount": {
+          "type": "number"
+        },
+        "dayStartedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "lastReportAt", "dailyCount", "dayStartedAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Geolocated neighbourhood feed message",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lng": {
+          "type": "number"
+        },
+        "geohash": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "text", "lat", "lng", "geohash", "createdAt"]
+    },
+    "ChatStats": {
+      "title": "ChatStats",
+      "description": "Per-user neighbourhood feed rate-limit counter",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "lastMessageAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "dailyCount": {
+          "type": "number"
+        },
+        "dayStartedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "lastMessageAt", "dailyCount", "dayStartedAt"]
+    }
+  },
+  "firestore": {
+    "/admins/{userId}": {
+      "schema": "Admin",
+      "description": "Administrator / Moderator allowlist"
+    },
+    "/roles/{userId}": {
+      "schema": "Role",
+      "description": "Approved utility worker roles"
+    },
+    "/roleRequests/{userId}": {
+      "schema": "RoleRequest",
+      "description": "Utility worker role applications"
+    },
+    "/announcements/{announcementId}": {
+      "schema": "Announcement",
+      "description": "Official utility notices"
+    },
+    "/sourceDrafts/{draftId}": {
+      "schema": "SourceDraft",
+      "description": "Imported official source drafts"
+    },
+    "/reports/{reportId}": {
+      "schema": "Report",
+      "description": "Community utility outage reports"
+    },
+    "/reports/{reportId}/votes/{voterId}": {
+      "schema": "ReportVote",
+      "description": "User votes on outage reports"
+    },
+    "/userStats/{userId}": {
+      "schema": "UserStats",
+      "description": "Report rate-limiting counters"
+    },
+    "/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Neighbourhood chat messages"
+    },
+    "/chatStats/{userId}": {
+      "schema": "ChatStats",
+      "description": "Chat rate-limiting counters"
+    }
+  }
+}

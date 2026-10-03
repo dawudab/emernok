@@ -1,21 +1,46 @@
 rules_version = '2';
 
-// Reading is public; every write requires a confirmed phone number or a
-// verified email address.
-// Anti-spam limits must stay in sync with src/constants.js.
 service cloud.firestore {
   match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
 
-    // Anonymous sessions carry neither claim, so this is what gates all writes.
-    // Checking for each key first avoids erroring on tokens that lack it.
-    // An unverified email is deliberately not enough: otherwise anyone could
-    // type a stranger's address and start writing.
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
     function verifiedUser() {
-      return request.auth != null
+      return isSignedIn()
         && (
           ('phone_number' in request.auth.token
-            && request.auth.token.phone_number != '')
+            && request.auth.token.phone_number is string
+            && request.auth.token.phone_number.size() > 0
+            && request.auth.token.phone_number.size() <= 32)
           || ('email_verified' in request.auth.token
+            && request.auth.token.email_verified == true)
+        );
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && (
+          exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+          || ('email' in request.auth.token
+            && request.auth.token.email == 'davionbase@gmail.com'
+            && 'email_verified' in request.auth.token
             && request.auth.token.email_verified == true)
         );
     }
@@ -24,156 +49,174 @@ service cloud.firestore {
       return /databases/$(database)/documents/$(name)/$(request.auth.uid);
     }
 
-    // ---- privileged roles --------------------------------------------------
-
-    // Moderators are a collection no client can write to: seed it from the
-    // Firebase console. Making it data rather than a hardcoded uid lets the
-    // team grow without a rules deploy.
-    function isAdmin() {
-      return request.auth != null
-        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
-    }
-
     function rolePath() {
       return /databases/$(database)/documents/roles/$(request.auth.uid);
     }
 
-    function myRole() { return get(rolePath()).data; }
+    function myRole() {
+      return get(rolePath()).data;
+    }
 
-    // Approved by a moderator *and* holding a verified identity: losing the
-    // second must not leave the first standing.
     function isOfficial() {
       return verifiedUser()
         && exists(rolePath())
         && myRole().approved == true;
     }
 
+    match /test/{docId} {
+      allow get: if isValidId(docId);
+      allow list, write: if false;
+    }
+
     match /admins/{userId} {
-      // You may check whether you are a moderator, nothing more.
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if false;
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow list, write: if false;
+    }
+
+    function isValidRole(data, userId) {
+      return data.keys().hasAll(['uid', 'role', 'org', 'name', 'approved', 'approvedBy', 'approvedAt'])
+        && data.keys().hasOnly(['uid', 'role', 'org', 'name', 'approved', 'approvedBy', 'approvedAt'])
+        && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128 && data.uid == userId
+        && data.role is string && data.role.size() <= 20 && data.role == 'official'
+        && data.org is string && data.org.size() > 0 && data.org.size() <= 100
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.approved is bool
+        && data.approvedBy is string && data.approvedBy.size() > 0 && data.approvedBy.size() <= 128 && data.approvedBy == request.auth.uid
+        && data.approvedAt is timestamp;
     }
 
     match /roles/{userId} {
-      allow read: if request.auth != null
-        && (request.auth.uid == userId || isAdmin());
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
 
-      // Only a moderator grants a role, and only ever stamped with their own
-      // uid, so every grant is attributable.
-      allow create, update: if isAdmin()
-        && request.resource.data.uid == userId
-        && request.resource.data.role == 'official'
-        && request.resource.data.org is string
-        && request.resource.data.org.size() > 0
-        && request.resource.data.org.size() <= 100
-        && request.resource.data.approved is bool
-        && request.resource.data.approvedBy == request.auth.uid
-        && request.resource.data.keys().hasOnly(
-             ['uid', 'role', 'org', 'name', 'approved', 'approvedBy', 'approvedAt']
-           );
+      allow create: if isSignedIn()
+        && isValidId(userId)
+        && isValidRole(incoming(), userId)
+        && incoming().approvedAt == request.time
+        && isAdmin();
 
-      allow delete: if isAdmin();
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && isValidRole(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().diff(existing()).affectedKeys().hasOnly(['org', 'name', 'approved', 'approvedBy', 'approvedAt'])
+        && isAdmin();
+
+      allow delete: if isSignedIn() && isValidId(userId) && isAdmin();
+    }
+
+    function isValidRoleRequest(data, userId) {
+      return data.keys().hasAll(['uid', 'org', 'name', 'title', 'proof', 'status', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'org', 'name', 'title', 'proof', 'status', 'createdAt', 'reviewedBy', 'reviewedAt'])
+        && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128 && data.uid == userId
+        && data.org is string && data.org.size() > 0 && data.org.size() <= 100
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.title is string && data.title.size() <= 100
+        && data.proof is string && data.proof.size() > 0 && data.proof.size() <= 500
+        && data.status is string && data.status.size() <= 20 && data.status in ['pending', 'approved', 'rejected']
+        && data.createdAt is timestamp;
     }
 
     match /roleRequests/{userId} {
-      allow read: if request.auth != null
-        && (request.auth.uid == userId || isAdmin());
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow list: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
 
-      // An application is self-service, but it can only ever be created as
-      // 'pending': the applicant cannot approve themselves.
       allow create: if verifiedUser()
+        && isValidId(userId)
         && request.auth.uid == userId
-        && request.resource.data.uid == userId
-        && request.resource.data.status == 'pending'
-        && request.resource.data.org is string
-        && request.resource.data.org.size() > 0
-        && request.resource.data.org.size() <= 100
-        && request.resource.data.name is string
-        && request.resource.data.name.size() > 0
-        && request.resource.data.name.size() <= 100
-        && request.resource.data.title is string
-        && request.resource.data.title.size() <= 100
-        && request.resource.data.proof is string
-        && request.resource.data.proof.size() > 0
-        && request.resource.data.proof.size() <= 500
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.keys().hasOnly(
-             ['uid', 'org', 'name', 'title', 'proof', 'status', 'createdAt']
-           );
+        && isValidRoleRequest(incoming(), userId)
+        && incoming().keys().hasOnly(['uid', 'org', 'name', 'title', 'proof', 'status', 'createdAt'])
+        && incoming().status == 'pending'
+        && incoming().createdAt == request.time;
 
-      allow update: if isAdmin()
-        && request.resource.data.status in ['approved', 'rejected']
-        && request.resource.data.reviewedBy == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['status', 'reviewedBy', 'reviewedAt']);
-
-      allow delete: if isAdmin();
-    }
-
-    // ---- official notices --------------------------------------------------
-
-    match /announcements/{announcementId} {
-      // The whole point is visibility, so reads stay public.
-      allow read: if true;
-
-      allow create: if request.resource.data.uid == request.auth.uid
-        && request.resource.data.text is string
-        && request.resource.data.text.size() > 0
-        && request.resource.data.text.size() <= 500
-        && request.resource.data.area is string
-        && request.resource.data.areaId is string
-        && request.resource.data.lat is number
-        && request.resource.data.lng is number
-        && request.resource.data.lat >= -90 && request.resource.data.lat <= 90
-        && request.resource.data.lng >= -180 && request.resource.data.lng <= 180
-        && request.resource.data.geohash is string
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.expiresAt is timestamp
-        && request.resource.data.expiresAt > request.time
-        // One hour of slack over the 48h cap absorbs client clock skew.
-        && request.resource.data.expiresAt < request.time + duration.value(49, 'h')
-        && request.resource.data.keys().hasOnly(
-             ['uid', 'org', 'area', 'areaId', 'lat', 'lng', 'geohash', 'text',
-              'createdAt', 'expiresAt']
-           )
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && isValidRoleRequest(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
         && (
-          // An approved worker may only publish under their own organisation,
-          // so an approval for one employer cannot be used to impersonate
-          // another. Moderators publish reviewed imports under any source.
-          (isOfficial() && request.resource.data.org == myRole().org)
-          || (isAdmin() && request.resource.data.org is string)
+          (isAdmin()
+            && incoming().status in ['approved', 'rejected']
+            && incoming().reviewedBy is string
+            && incoming().reviewedBy.size() > 0
+            && incoming().reviewedBy.size() <= 128
+            && incoming().reviewedBy == request.auth.uid
+            && incoming().reviewedAt == request.time
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'reviewedBy', 'reviewedAt']))
         );
 
-      // Notices are immutable; a wrong one is withdrawn, not quietly edited.
-      allow update: if false;
-      allow delete: if isAdmin()
-        || (isOfficial() && resource.data.uid == request.auth.uid);
+      allow delete: if isSignedIn() && isValidId(userId) && isAdmin();
     }
 
-    // ---- imported source drafts --------------------------------------------
+    function isValidAnnouncement(data) {
+      return data.keys().hasAll(['uid', 'org', 'area', 'areaId', 'lat', 'lng', 'geohash', 'text', 'createdAt', 'expiresAt'])
+        && data.keys().hasOnly(['uid', 'org', 'area', 'areaId', 'lat', 'lng', 'geohash', 'text', 'createdAt', 'expiresAt'])
+        && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128 && data.uid == request.auth.uid
+        && data.org is string && data.org.size() > 0 && data.org.size() <= 100
+        && data.area is string && data.area.size() > 0 && data.area.size() <= 100
+        && data.areaId is string && data.areaId.size() > 0 && data.areaId.size() <= 100
+        && data.lat is number && data.lat >= -90 && data.lat <= 90
+        && data.lng is number && data.lng >= -180 && data.lng <= 180
+        && data.geohash is string && data.geohash.size() > 0 && data.geohash.size() <= 20
+        && data.text is string && data.text.size() > 0 && data.text.size() <= 500
+        && data.createdAt == request.time
+        && data.expiresAt is timestamp
+        && data.expiresAt > request.time
+        && data.expiresAt < request.time + duration.value(49, 'h');
+    }
 
-    // Written only by the scheduled importer through the Admin SDK, which
-    // bypasses these rules. Nothing a browser holds can forge one.
+    match /announcements/{announcementId} {
+      // Official outage notices are public map data readable by all visitors.
+      allow get, list: if true;
+
+      allow create: if isSignedIn()
+        && isValidId(announcementId)
+        && isValidAnnouncement(incoming())
+        && (
+          (isOfficial() && incoming().org == myRole().org)
+          || isAdmin()
+        );
+
+      allow update: if false;
+      allow delete: if isSignedIn()
+        && isValidId(announcementId)
+        && (isAdmin() || (isOfficial() && resource.data.uid == request.auth.uid));
+    }
+
+    function isValidSourceDraft(data) {
+      return data.keys().hasAll(['source', 'org', 'text', 'areaId', 'status', 'fetchedAt'])
+        && data.keys().hasOnly(['source', 'org', 'url', 'text', 'areaId', 'status', 'fetchedAt', 'reviewedBy', 'reviewedAt'])
+        && data.source is string && data.source.size() > 0 && data.source.size() <= 100
+        && data.org is string && data.org.size() > 0 && data.org.size() <= 100
+        && data.text is string && data.text.size() > 0 && data.text.size() <= 500
+        && data.areaId is string && data.areaId.size() > 0 && data.areaId.size() <= 100
+        && data.status is string && data.status.size() <= 20 && data.status in ['pending', 'published', 'discarded']
+        && data.fetchedAt is timestamp;
+    }
+
     match /sourceDrafts/{draftId} {
-      allow read: if isAdmin();
+      allow get: if isValidId(draftId) && isAdmin();
+      allow list: if isAdmin();
       allow create: if false;
 
-      allow update: if isAdmin()
-        && request.resource.data.status in ['published', 'discarded']
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['status', 'reviewedBy', 'reviewedAt']);
+      allow update: if isSignedIn()
+        && isValidId(draftId)
+        && isValidSourceDraft(incoming())
+        && isAdmin()
+        && incoming().status in ['published', 'discarded']
+        && incoming().reviewedBy is string
+        && incoming().reviewedBy.size() > 0
+        && incoming().reviewedBy.size() <= 128
+        && incoming().reviewedBy == request.auth.uid
+        && incoming().reviewedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'reviewedBy', 'reviewedAt']);
 
-      allow delete: if isAdmin();
+      allow delete: if isSignedIn() && isValidId(draftId) && isAdmin();
     }
-
-    // ---- reports -----------------------------------------------------------
 
     function statsPath() { return counterPath('userStats'); }
     function firstEverReport() { return !exists(statsPath()); }
     function statsBefore() { return get(statsPath()).data; }
-
-    // Reports and the counter are committed together, so we can inspect the
-    // post-commit counter and require that it was actually bumped.
     function statsAfter() { return getAfter(statsPath()).data; }
 
     function cooldownElapsed() {
@@ -190,8 +233,6 @@ service cloud.firestore {
       return dayWindowExpired() || statsBefore().dailyCount < 20;
     }
 
-    // Without this a client could write unlimited reports and simply never
-    // update its own counter.
     function counterBumped() {
       return statsAfter().uid == request.auth.uid
         && statsAfter().lastReportAt == request.time;
@@ -201,98 +242,111 @@ service cloud.firestore {
       return /databases/$(database)/documents/reports/$(reportId)/votes/$(request.auth.uid);
     }
 
+    function isValidReport(data) {
+      return data.keys().hasAll(['uid', 'type', 'lat', 'lng', 'geohash', 'createdAt', 'stillOutCount', 'restoredCount'])
+        && data.keys().hasOnly(['uid', 'type', 'lat', 'lng', 'geohash', 'createdAt', 'stillOutCount', 'restoredCount'])
+        && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128
+        && data.type is string && data.type.size() <= 20 && data.type in ['power', 'water', 'fuel']
+        && data.lat is number && data.lat >= -90 && data.lat <= 90
+        && data.lng is number && data.lng >= -180 && data.lng <= 180
+        && data.geohash is string && data.geohash.size() > 0 && data.geohash.size() <= 20
+        && data.createdAt is timestamp
+        && data.stillOutCount is int && data.stillOutCount >= 0
+        && data.restoredCount is int && data.restoredCount >= 0;
+    }
+
     match /reports/{reportId} {
-      // Outage data is public so anyone can see what is down.
-      allow read: if true;
+      // Outage reports are public map pins readable by all visitors.
+      allow get, list: if true;
 
       allow create: if verifiedUser()
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.type in ['power', 'water', 'fuel']
-        && request.resource.data.lat is number
-        && request.resource.data.lng is number
-        && request.resource.data.lat >= -90 && request.resource.data.lat <= 90
-        && request.resource.data.lng >= -180 && request.resource.data.lng <= 180
-        && request.resource.data.geohash is string
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.stillOutCount == 0
-        && request.resource.data.restoredCount == 0
-        && request.resource.data.keys().hasOnly(
-             ['uid', 'type', 'lat', 'lng', 'geohash', 'createdAt',
-              'stillOutCount', 'restoredCount']
-           )
+        && isValidId(reportId)
+        && isValidReport(incoming())
+        && incoming().uid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().stillOutCount == 0
+        && incoming().restoredCount == 0
         && cooldownElapsed()
         && underDailyCap()
         && counterBumped();
 
-      // The only permitted update is a vote tally bumped by exactly one, and
-      // only when the matching vote document is created in the same commit by
-      // a user who has not voted on this report before.
       allow update: if verifiedUser()
+        && isValidId(reportId)
+        && isValidReport(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
         && !exists(votePath(reportId))
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['stillOutCount', 'restoredCount'])
+        && incoming().diff(existing()).affectedKeys().hasOnly(['stillOutCount', 'restoredCount'])
         && (
-          getAfter(votePath(reportId)).data.value == 'still_out'
-            ? request.resource.data.stillOutCount == resource.data.stillOutCount + 1
-              && request.resource.data.restoredCount == resource.data.restoredCount
-            : getAfter(votePath(reportId)).data.value == 'restored'
-              && request.resource.data.restoredCount == resource.data.restoredCount + 1
-              && request.resource.data.stillOutCount == resource.data.stillOutCount
+          (getAfter(votePath(reportId)).data.value == 'still_out'
+            && incoming().stillOutCount == existing().stillOutCount + 1
+            && incoming().restoredCount == existing().restoredCount)
+          || (getAfter(votePath(reportId)).data.value == 'restored'
+            && incoming().restoredCount == existing().restoredCount + 1
+            && incoming().stillOutCount == existing().stillOutCount)
         );
 
       allow delete: if false;
 
+      function isValidVote(data, voterId) {
+        return data.keys().hasAll(['uid', 'value', 'createdAt'])
+          && data.keys().hasOnly(['uid', 'value', 'createdAt'])
+          && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128 && data.uid == voterId
+          && data.value is string && data.value.size() <= 20 && data.value in ['still_out', 'restored']
+          && data.createdAt == request.time;
+      }
+
       match /votes/{voterId} {
-        allow read: if true;
+        allow get, list: if true;
 
         allow create: if verifiedUser()
+          && isValidId(reportId)
+          && isValidId(voterId)
           && request.auth.uid == voterId
-          && request.resource.data.uid == voterId
-          && request.resource.data.value in ['still_out', 'restored']
-          && request.resource.data.createdAt == request.time
-          && request.resource.data.keys().hasOnly(['uid', 'value', 'createdAt']);
+          && isValidVote(incoming(), voterId)
+          && exists(/databases/$(database)/documents/reports/$(reportId));
 
-        // A vote is final, so the tally can never be double counted.
         allow update, delete: if false;
       }
     }
 
-    match /userStats/{userId} {
-      function wellFormed() {
-        return request.resource.data.uid == userId
-          && request.resource.data.lastReportAt == request.time
-          && request.resource.data.dailyCount is int
-          && request.resource.data.keys().hasOnly(
-               ['uid', 'lastReportAt', 'dailyCount', 'dayStartedAt']
-             );
-      }
+    function isValidUserStats(data, userId) {
+      return data.keys().hasAll(['uid', 'lastReportAt', 'dailyCount', 'dayStartedAt'])
+        && data.keys().hasOnly(['uid', 'lastReportAt', 'dailyCount', 'dayStartedAt'])
+        && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128 && data.uid == userId
+        && data.lastReportAt == request.time
+        && data.dailyCount is int && data.dailyCount >= 1 && data.dailyCount <= 20
+        && data.dayStartedAt is timestamp;
+    }
 
-      // Only the owner can see or touch their own counter.
-      allow read: if request.auth != null && request.auth.uid == userId;
+    match /userStats/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if false;
 
       allow create: if verifiedUser()
+        && isValidId(userId)
         && request.auth.uid == userId
-        && wellFormed()
-        && request.resource.data.dailyCount == 1
-        && request.resource.data.dayStartedAt == request.time;
+        && isValidUserStats(incoming(), userId)
+        && incoming().dailyCount == 1
+        && incoming().dayStartedAt == request.time;
 
       allow update: if verifiedUser()
+        && isValidId(userId)
         && request.auth.uid == userId
-        && wellFormed()
-        // Either the 24h window rolled over (counter resets) or it ticks up by
-        // exactly one while keeping the same window start.
+        && isValidUserStats(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().diff(existing()).affectedKeys().hasOnly(['lastReportAt', 'dailyCount', 'dayStartedAt'])
         && (
-          request.time > resource.data.dayStartedAt + duration.value(1, 'd')
-            ? request.resource.data.dailyCount == 1
-              && request.resource.data.dayStartedAt == request.time
-            : request.resource.data.dailyCount == resource.data.dailyCount + 1
-              && request.resource.data.dayStartedAt == resource.data.dayStartedAt
+          (request.time > existing().dayStartedAt + duration.value(1, 'd')
+            && incoming().dailyCount == 1
+            && incoming().dayStartedAt == request.time)
+          || (request.time <= existing().dayStartedAt + duration.value(1, 'd')
+            && incoming().dailyCount == existing().dailyCount + 1
+            && incoming().dayStartedAt == existing().dayStartedAt)
         );
 
       allow delete: if false;
     }
-
-    // ---- community feed ----------------------------------------------------
 
     function chatPath() { return counterPath('chatStats'); }
     function firstEverMessage() { return !exists(chatPath()); }
@@ -318,21 +372,24 @@ service cloud.firestore {
         && chatAfter().lastMessageAt == request.time;
     }
 
+    function isValidMessage(data) {
+      return data.keys().hasAll(['uid', 'text', 'lat', 'lng', 'geohash', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'text', 'lat', 'lng', 'geohash', 'createdAt'])
+        && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128 && data.uid == request.auth.uid
+        && data.text is string && data.text.size() > 0 && data.text.size() <= 300
+        && data.lat is number && data.lat >= -90 && data.lat <= 90
+        && data.lng is number && data.lng >= -180 && data.lng <= 180
+        && data.geohash is string && data.geohash.size() > 0 && data.geohash.size() <= 20
+        && data.createdAt == request.time;
+    }
+
     match /messages/{messageId} {
-      allow read: if true;
+      // Neighbourhood messages are public feed items readable by all visitors.
+      allow get, list: if true;
 
       allow create: if verifiedUser()
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.text is string
-        && request.resource.data.text.size() > 0
-        && request.resource.data.text.size() <= 300
-        && request.resource.data.lat is number
-        && request.resource.data.lng is number
-        && request.resource.data.geohash is string
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.keys().hasOnly(
-             ['uid', 'text', 'lat', 'lng', 'geohash', 'createdAt']
-           )
+        && isValidId(messageId)
+        && isValidMessage(incoming())
         && chatCooldownElapsed()
         && underChatCap()
         && chatCounterBumped();
@@ -340,33 +397,39 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    match /chatStats/{userId} {
-      function wellFormedChat() {
-        return request.resource.data.uid == userId
-          && request.resource.data.lastMessageAt == request.time
-          && request.resource.data.dailyCount is int
-          && request.resource.data.keys().hasOnly(
-               ['uid', 'lastMessageAt', 'dailyCount', 'dayStartedAt']
-             );
-      }
+    function isValidChatStats(data, userId) {
+      return data.keys().hasAll(['uid', 'lastMessageAt', 'dailyCount', 'dayStartedAt'])
+        && data.keys().hasOnly(['uid', 'lastMessageAt', 'dailyCount', 'dayStartedAt'])
+        && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128 && data.uid == userId
+        && data.lastMessageAt == request.time
+        && data.dailyCount is int && data.dailyCount >= 1 && data.dailyCount <= 100
+        && data.dayStartedAt is timestamp;
+    }
 
-      allow read: if request.auth != null && request.auth.uid == userId;
+    match /chatStats/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if false;
 
       allow create: if verifiedUser()
+        && isValidId(userId)
         && request.auth.uid == userId
-        && wellFormedChat()
-        && request.resource.data.dailyCount == 1
-        && request.resource.data.dayStartedAt == request.time;
+        && isValidChatStats(incoming(), userId)
+        && incoming().dailyCount == 1
+        && incoming().dayStartedAt == request.time;
 
       allow update: if verifiedUser()
+        && isValidId(userId)
         && request.auth.uid == userId
-        && wellFormedChat()
+        && isValidChatStats(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().diff(existing()).affectedKeys().hasOnly(['lastMessageAt', 'dailyCount', 'dayStartedAt'])
         && (
-          request.time > resource.data.dayStartedAt + duration.value(1, 'd')
-            ? request.resource.data.dailyCount == 1
-              && request.resource.data.dayStartedAt == request.time
-            : request.resource.data.dailyCount == resource.data.dailyCount + 1
-              && request.resource.data.dayStartedAt == resource.data.dayStartedAt
+          (request.time > existing().dayStartedAt + duration.value(1, 'd')
+            && incoming().dailyCount == 1
+            && incoming().dayStartedAt == request.time)
+          || (request.time <= existing().dayStartedAt + duration.value(1, 'd')
+            && incoming().dailyCount == existing().dailyCount + 1
+            && incoming().dayStartedAt == existing().dayStartedAt)
         );
 
       allow delete: if false;

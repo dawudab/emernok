@@ -1,0 +1,7 @@
+{
+  "name": "Emernok — Nouakchott Service Map",
+  "description": "Live community reports of power, water and fuel outages in Nouakchott.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

@@ -1,14 +1,17 @@
 import {
   EmailAuthProvider,
+  GoogleAuthProvider,
   PhoneAuthProvider,
   RecaptchaVerifier,
   isSignInWithEmailLink,
   linkWithCredential,
   linkWithPhoneNumber,
+  linkWithPopup,
   reload,
   sendSignInLinkToEmail,
   signInWithCredential,
   signInWithPhoneNumber,
+  signInWithPopup,
   signOut as firebaseSignOut,
 } from 'firebase/auth'
 import { auth } from '../firebaseConfig'
@@ -40,6 +43,29 @@ async function upgradeOrSignIn(credential) {
     }
   }
   return signInWithCredential(auth, credential)
+}
+
+// ---- google ----------------------------------------------------------------
+
+export async function signInWithGoogle() {
+  const provider = new GoogleAuthProvider()
+  const current = auth.currentUser
+  if (current?.isAnonymous) {
+    try {
+      return await linkWithPopup(current, provider)
+    } catch (error) {
+      if (
+        error.code === 'auth/credential-already-in-use' ||
+        error.code === 'auth/email-already-in-use'
+      ) {
+        const credential = GoogleAuthProvider.credentialFromError(error)
+        if (credential) return signInWithCredential(auth, credential)
+        return signInWithPopup(auth, provider)
+      }
+      throw error
+    }
+  }
+  return signInWithPopup(auth, provider)
 }
 
 // ---- phone -----------------------------------------------------------------

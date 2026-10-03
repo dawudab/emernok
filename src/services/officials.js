@@ -15,7 +15,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore'
-import { db } from '../firebaseConfig'
+import { OperationType, auth, db, handleFirestoreError } from '../firebaseConfig'
 import {
   ANNOUNCEMENT_MAX_HOURS,
   MAX_ANNOUNCEMENT_LENGTH,
@@ -26,16 +26,34 @@ const ROLE_REQUESTS = 'roleRequests'
 const ANNOUNCEMENTS = 'announcements'
 const SOURCE_DRAFTS = 'sourceDrafts'
 const ADMINS = 'admins'
+const BOOTSTRAP_ADMIN_EMAIL = 'davionbase@gmail.com'
 
 export const ROLE_OFFICIAL = 'official'
 
+function isPermissionError(error) {
+  return (
+    error?.code === 'permission-denied' ||
+    error?.message?.includes('Missing or insufficient permissions')
+  )
+}
+
+function toMillis(value) {
+  return value?.toMillis?.() ?? 0
+}
+
 /**
- * Admins are a Firestore collection rather than a hardcoded list so the team
- * can grow without a deploy. Nothing in the app can write to it: seed it from
- * the Firebase console.
+ * Admins are a Firestore collection plus the bootstrapped project owner email.
  */
 export async function isAdminUser(uid) {
   if (!db || !uid) return false
+  const currentUser = auth?.currentUser
+  if (
+    currentUser?.uid === uid &&
+    currentUser?.email === BOOTSTRAP_ADMIN_EMAIL &&
+    currentUser?.emailVerified
+  ) {
+    return true
+  }
   try {
     return (await getDoc(doc(db, ADMINS, uid))).exists()
   } catch {
@@ -62,19 +80,26 @@ export function subscribeToMyRequest(uid, onRequest, onError) {
   )
 }
 
-export function submitRoleRequest({ uid, org, name, title, proof }) {
+export async function submitRoleRequest({ uid, org, name, title, proof }) {
   if (!db) throw new Error('Firebase is not configured')
   if (!uid) throw new Error('Not signed in yet')
 
-  return setDoc(doc(db, ROLE_REQUESTS, uid), {
-    uid,
-    org: org.trim(),
-    name: name.trim(),
-    title: title.trim(),
-    proof: proof.trim(),
-    status: 'pending',
-    createdAt: serverTimestamp(),
-  })
+  try {
+    await setDoc(doc(db, ROLE_REQUESTS, uid), {
+      uid,
+      org: org.trim().slice(0, 100),
+      name: name.trim().slice(0, 100),
+      title: title.trim().slice(0, 100),
+      proof: proof.trim().slice(0, 500),
+      status: 'pending',
+      createdAt: serverTimestamp(),
+    })
+  } catch (error) {
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.CREATE, `${ROLE_REQUESTS}/${uid}`)
+    }
+    throw error
+  }
 }
 
 // ---- moderation ------------------------------------------------------------
@@ -98,39 +123,66 @@ export function subscribeToPendingRequests(onRequests, onError) {
  * Approval writes the role and closes the request together, so a half-applied
  * approval cannot leave someone with access but no audit trail.
  */
-export function approveRequest({ request, adminUid }) {
+export async function approveRequest({ request, adminUid }) {
   if (!db) throw new Error('Firebase is not configured')
 
-  const batch = writeBatch(db)
-  batch.set(doc(db, ROLES, request.uid), {
-    uid: request.uid,
-    role: ROLE_OFFICIAL,
-    org: request.org,
-    name: request.name,
-    approved: true,
-    approvedBy: adminUid,
-    approvedAt: serverTimestamp(),
-  })
-  batch.update(doc(db, ROLE_REQUESTS, request.uid), {
-    status: 'approved',
-    reviewedBy: adminUid,
-    reviewedAt: serverTimestamp(),
-  })
-  return batch.commit()
+  try {
+    const batch = writeBatch(db)
+    batch.set(doc(db, ROLES, request.uid), {
+      uid: request.uid,
+      role: ROLE_OFFICIAL,
+      org: request.org,
+      name: request.name,
+      approved: true,
+      approvedBy: adminUid,
+      approvedAt: serverTimestamp(),
+    })
+    batch.update(doc(db, ROLE_REQUESTS, request.uid), {
+      status: 'approved',
+      reviewedBy: adminUid,
+      reviewedAt: serverTimestamp(),
+    })
+    await batch.commit()
+  } catch (error) {
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.WRITE, `${ROLES}/${request.uid}`)
+    }
+    throw error
+  }
 }
 
-export function rejectRequest({ request, adminUid }) {
+export async function rejectRequest({ request, adminUid }) {
   if (!db) throw new Error('Firebase is not configured')
-  return updateDoc(doc(db, ROLE_REQUESTS, request.uid), {
-    status: 'rejected',
-    reviewedBy: adminUid,
-    reviewedAt: serverTimestamp(),
-  })
+  try {
+    await updateDoc(doc(db, ROLE_REQUESTS, request.uid), {
+      status: 'rejected',
+      reviewedBy: adminUid,
+      reviewedAt: serverTimestamp(),
+    })
+  } catch (error) {
+    if (isPermissionError(error)) {
+      handleFirestoreError(
+        error,
+        OperationType.UPDATE,
+        `${ROLE_REQUESTS}/${request.uid}`,
+      )
+    }
+    throw error
+  }
 }
 
 // ---- announcements ---------------------------------------------------------
 
-export function createAnnouncement({ uid, org, area, areaId, lat, lng, text, hours }) {
+export async function createAnnouncement({
+  uid,
+  org,
+  area,
+  areaId,
+  lat,
+  lng,
+  text,
+  hours,
+}) {
   if (!db) throw new Error('Firebase is not configured')
   if (!uid) throw new Error('Not signed in yet')
 
@@ -142,18 +194,25 @@ export function createAnnouncement({ uid, org, area, areaId, lat, lng, text, hou
 
   const span = Math.min(Math.max(Number(hours) || 1, 1), ANNOUNCEMENT_MAX_HOURS)
 
-  return setDoc(doc(collection(db, ANNOUNCEMENTS)), {
-    uid,
-    org,
-    area,
-    areaId,
-    lat,
-    lng,
-    geohash: geohashForLocation([lat, lng]),
-    text: trimmed,
-    createdAt: serverTimestamp(),
-    expiresAt: Timestamp.fromMillis(Date.now() + span * 60 * 60 * 1000),
-  })
+  try {
+    await setDoc(doc(collection(db, ANNOUNCEMENTS)), {
+      uid,
+      org: org.trim().slice(0, 100),
+      area: area.trim().slice(0, 100),
+      areaId: areaId.trim().slice(0, 100),
+      lat,
+      lng,
+      geohash: geohashForLocation([lat, lng]),
+      text: trimmed,
+      createdAt: serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(Date.now() + span * 60 * 60 * 1000),
+    })
+  } catch (error) {
+    if (isPermissionError(error)) {
+      handleFirestoreError(error, OperationType.CREATE, ANNOUNCEMENTS)
+    }
+    throw error
+  }
 }
 
 export function subscribeToAnnouncements(onAnnouncements, onError) {
@@ -176,25 +235,41 @@ export function subscribeToAnnouncements(onAnnouncements, onError) {
   )
 }
 
-export function deleteAnnouncement(id) {
+export async function deleteAnnouncement(id) {
   if (!db) throw new Error('Firebase is not configured')
-  return deleteDoc(doc(db, ANNOUNCEMENTS, id))
+  try {
+    await deleteDoc(doc(db, ANNOUNCEMENTS, id))
+  } catch (error) {
+    if (isPermissionError(error)) {
+      handleFirestoreError(
+        error,
+        OperationType.DELETE,
+        `${ANNOUNCEMENTS}/${id}`,
+      )
+    }
+    throw error
+  }
 }
 
 // ---- imported source drafts ------------------------------------------------
 
 export function subscribeToDrafts(onDrafts, onError) {
   if (!db) return () => {}
+  // Single-field equality query with client-side sort so it works without a
+  // composite index deployment.
   const pending = query(
     collection(db, SOURCE_DRAFTS),
     where('status', '==', 'pending'),
-    orderBy('fetchedAt', 'desc'),
     limit(50),
   )
   return onSnapshot(
     pending,
-    (snapshot) =>
-      onDrafts(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    (snapshot) => {
+      const docs = snapshot.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => toMillis(b.fetchedAt) - toMillis(a.fetchedAt))
+      onDrafts(docs)
+    },
     onError,
   )
 }
@@ -217,18 +292,40 @@ export async function publishDraft({ draft, adminUid, area, hours }) {
     hours,
   })
 
-  return updateDoc(doc(db, SOURCE_DRAFTS, draft.id), {
-    status: 'published',
-    reviewedBy: adminUid,
-    reviewedAt: serverTimestamp(),
-  })
+  try {
+    await updateDoc(doc(db, SOURCE_DRAFTS, draft.id), {
+      status: 'published',
+      reviewedBy: adminUid,
+      reviewedAt: serverTimestamp(),
+    })
+  } catch (error) {
+    if (isPermissionError(error)) {
+      handleFirestoreError(
+        error,
+        OperationType.UPDATE,
+        `${SOURCE_DRAFTS}/${draft.id}`,
+      )
+    }
+    throw error
+  }
 }
 
-export function discardDraft({ draft, adminUid }) {
+export async function discardDraft({ draft, adminUid }) {
   if (!db) throw new Error('Firebase is not configured')
-  return updateDoc(doc(db, SOURCE_DRAFTS, draft.id), {
-    status: 'discarded',
-    reviewedBy: adminUid,
-    reviewedAt: serverTimestamp(),
-  })
+  try {
+    await updateDoc(doc(db, SOURCE_DRAFTS, draft.id), {
+      status: 'discarded',
+      reviewedBy: adminUid,
+      reviewedAt: serverTimestamp(),
+    })
+  } catch (error) {
+    if (isPermissionError(error)) {
+      handleFirestoreError(
+        error,
+        OperationType.UPDATE,
+        `${SOURCE_DRAFTS}/${draft.id}`,
+      )
+    }
+    throw error
+  }
 }

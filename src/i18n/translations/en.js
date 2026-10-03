@@ -100,6 +100,8 @@ export default {
   'signIn.title': 'Sign in to report, post and vote',
   'signIn.subtitle':
     'Your existing reports stay with you when you sign in from this device.',
+  'signIn.google': 'Continue with Google',
+  'signIn.or': 'or',
   'signIn.email': 'Email',
   'signIn.phone': 'Phone',
   'signIn.emailLabel': 'Email address',

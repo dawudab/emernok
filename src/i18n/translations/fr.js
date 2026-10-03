@@ -107,6 +107,8 @@ export default {
   'signIn.title': 'Connectez-vous pour signaler, publier et voter',
   'signIn.subtitle':
     'Vos signalements existants restent les vôtres si vous vous connectez depuis cet appareil.',
+  'signIn.google': 'Continuer avec Google',
+  'signIn.or': 'ou',
   'signIn.email': 'E-mail',
   'signIn.phone': 'Téléphone',
   'signIn.emailLabel': 'Adresse e-mail',

@@ -26,6 +26,7 @@ function snapshot(user) {
     isAnonymous: user.isAnonymous,
     phoneNumber: user.phoneNumber ?? null,
     email: user.email ?? null,
+    displayName: user.displayName ?? null,
     emailVerified: user.emailVerified,
   }
 }
@@ -50,12 +51,24 @@ function AuthProvider({ children }) {
       (nextUser) => {
         if (nextUser) {
           setIdentity(snapshot(nextUser))
+          setError(null)
           setStatus('authenticated')
           return
         }
 
         setIdentity(null)
         signInAnonymously(auth).catch((signInError) => {
+          // When Anonymous Auth is disabled in Firebase Console (e.g. only
+          // Google Auth is enabled), treat the unauthenticated visitor as a
+          // read-only guest session rather than a connection error.
+          if (
+            signInError?.code === 'auth/admin-restricted-operation' ||
+            signInError?.code === 'auth/operation-not-allowed'
+          ) {
+            setError(null)
+            setStatus('authenticated')
+            return
+          }
           setError(signInError)
           setStatus('error')
         })
@@ -92,12 +105,14 @@ function AuthProvider({ children }) {
   }, [finishEmailLink, identity, linkStatus])
 
   const value = useMemo(() => {
-    const { phoneNumber, email, emailVerified, isAnonymous } = identity ?? {
-      phoneNumber: null,
-      email: null,
-      emailVerified: false,
-      isAnonymous: true,
-    }
+    const { phoneNumber, email, displayName, emailVerified, isAnonymous } =
+      identity ?? {
+        phoneNumber: null,
+        email: null,
+        displayName: null,
+        emailVerified: false,
+        isAnonymous: true,
+      }
 
     return {
       uid: identity?.uid ?? null,
@@ -112,7 +127,7 @@ function AuthProvider({ children }) {
       canWrite: Boolean(
         identity && !isAnonymous && (phoneNumber || emailVerified),
       ),
-      identityLabel: phoneNumber ?? email ?? 'Guest',
+      identityLabel: phoneNumber ?? email ?? displayName ?? 'Guest',
       emailLinkStatus: linkStatus,
       emailLinkError: linkError,
       finishEmailLink,

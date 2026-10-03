@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview",
+    "preview": "vite preview --host 0.0.0.0 --port 3000",
     "poll:sources": "node scripts/poll-sources.mjs"
   },
   "dependencies": {
@@ -22,9 +22,11 @@
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
+    "@firebase/eslint-plugin-security-rules": "^0.0.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "eslint": "^10.12.0",
     "firebase-admin": "^14.5.0",
     "oxlint": "^1.81.0",
     "vite": "^8.3.0",

@@ -339,4 +339,35 @@ export default {
   'walkthrough.howto.f4Title': '4. Your Profile & Peer Verification',
   'walkthrough.howto.f4Body':
     '3 distinct neighbours within 500m verify an outage (turning it red). Unverified reports older than 24h auto-delete. Open Your Profile from the menu to track or delete your reports.',
+
+  'region.uptime': '7d Uptime',
+  'region.lastOutage': 'Last outage',
+  'region.noRecentOutage': 'None in last 7d',
+  'region.maintenance': 'Maintenance',
+  'region.noMaintenance': 'None reported',
+  'region.neighbourhoods': 'Neighbourhoods (Quartiers)',
+
+  'station.thresholdHint': '{out}/{min} No Gas reports (needs >10 to mark Out)',
+
+  'report.modeLabel': 'Outage Timing',
+  'report.modeCurrent': 'Current Outage',
+  'report.modePast': 'Past Outage (≤7d)',
+  'report.dateTimeLabel': 'Outage Date & Time',
+  'report.durationPastLabel': 'How long did it last? (hours)',
+  'report.durationCurrentLabel': 'Ongoing duration estimate (hours)',
+  'report.causeLabel': 'Outage Type',
+  'report.causeUnplanned': 'Power Failure',
+  'report.causeMaintenance': 'Maintenance',
+
+  'profile.statusPast': 'Past Outage',
+
+  'community.scope.radius': 'Radius',
+  'community.scope.neighbourhood': 'Quartier',
+  'community.scope.region': 'Region',
+  'community.scope.global': 'City-Wide',
+  'community.radiusLabel': 'Reach people within radius:',
+  'community.desc.radius': 'Public chat within {km}km of your location · 3d history',
+  'community.desc.neighbourhood': 'Neighbourhood chat · {name} · 3d history',
+  'community.desc.region': 'Regional updates · {name} · 3d history',
+  'community.desc.global': 'City-wide Nouakchott updates · 3d history',
 }

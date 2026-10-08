@@ -8,7 +8,6 @@ import {
   Sun,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { COMMUNITY_RADIUS_KM } from '../constants'
 import { useAuth } from '../context/useAuth'
 import { LANGUAGES, useI18n } from '../i18n/useI18n'
 import { signOut } from '../services/auth'
@@ -25,7 +24,6 @@ const VERIFICATION_OPTIONS = [
 function MenuRow({
   icon: Icon,
   label,
-  hint,
   onClick,
   disabled,
   destructive = false,
@@ -35,24 +33,17 @@ function MenuRow({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-start text-sm font-medium transition-all duration-300 hover:bg-black/5 active:bg-black/10 disabled:opacity-40 dark:hover:bg-white/10 dark:active:bg-white/15 ${
+      className={`flex min-h-11 w-full items-center gap-3 px-4 py-2 text-start text-sm font-medium transition-all duration-200 hover:bg-black/5 active:bg-black/10 disabled:opacity-40 dark:hover:bg-white/10 dark:active:bg-white/15 ${
         destructive ? 'text-red-500' : ''
       }`}
     >
       <Icon
-        size={18}
+        size={17}
         strokeWidth={2}
         aria-hidden="true"
         className={`shrink-0 ${destructive ? '' : 'text-zinc-500 dark:text-zinc-400'}`}
       />
-      <span className="min-w-0 flex-1">
-        <span className="block">{label}</span>
-        {hint && (
-          <span className="block text-xs font-normal text-zinc-500 dark:text-zinc-400">
-            {hint}
-          </span>
-        )}
-      </span>
+      <span className="min-w-0 flex-1 truncate">{label}</span>
     </button>
   )
 }
@@ -64,7 +55,7 @@ function ToggleRow({ icon: Icon, label, checked, onChange }) {
       role="switch"
       aria-checked={checked}
       onClick={onChange}
-      className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-2 text-start text-sm font-medium transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+      className="flex min-h-10 w-full items-center justify-between gap-3 px-4 py-1.5 text-start text-sm font-medium transition-colors hover:bg-black/5 dark:hover:bg-white/10"
     >
       <span className="flex items-center gap-3">
         <Icon
@@ -204,10 +195,10 @@ function AppMenu({
             ref={menuRef}
             role="dialog"
             aria-label={t('menu.label')}
-            className="glass-sheet absolute top-full end-0 z-[1095] mt-2 flex max-h-[calc(100dvh-6.5rem)] w-[min(19.5rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-3xl"
+            className="glass-sheet absolute top-full end-0 z-[1095] mt-2 flex max-h-[min(78dvh,calc(100vh-5.5rem))] w-[min(19rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-3xl shadow-2xl"
           >
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
-              <div className="border-b border-black/5 px-4 py-3 dark:border-white/10">
+              <div className="border-b border-black/5 px-4 py-2.5 dark:border-white/10">
                 <p className="font-mono text-[10px] font-semibold tracking-[0.18em] text-zinc-500 uppercase dark:text-zinc-400">
                   {canWrite ? t('menu.signedIn') : t('menu.browsing')}
                 </p>
@@ -218,22 +209,19 @@ function AppMenu({
                 </p>
               </div>
 
-              {/* Your Profile in the dropdown menu (replaces My reports) */}
               <MenuRow
                 icon={MENU_ICONS.profile}
                 label={t('menu.yourProfile')}
-                hint={t('menu.yourProfileHint')}
                 onClick={choose(onOpenProfile)}
               />
               <MenuRow
                 icon={MENU_ICONS.community}
                 label={t('menu.community')}
-                hint={t('menu.communityHint', { km: COMMUNITY_RADIUS_KM })}
                 onClick={choose(onOpenCommunity)}
               />
 
               {/* Settings section */}
-              <div className="border-t border-b border-black/5 py-2 dark:border-white/10">
+              <div className="border-t border-b border-black/5 py-1.5 dark:border-white/10">
                 <div className="flex items-center gap-2 px-4 py-1">
                   <SlidersHorizontal
                     size={12}
@@ -259,7 +247,7 @@ function AppMenu({
                   onChange={onToggleStations}
                 />
 
-                <div className="px-4 pt-2 pb-1.5">
+                <div className="px-4 pt-1.5 pb-1">
                   <div className="flex items-center gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-300">
                     <ShieldCheck
                       size={15}
@@ -282,7 +270,7 @@ function AppMenu({
                           type="button"
                           aria-pressed={active}
                           onClick={() => onChangeVerificationFilter(option.id)}
-                          className={`min-h-9 rounded-full px-2 text-xs font-semibold transition-all duration-200 ${
+                          className={`min-h-8 rounded-full px-2 text-xs font-semibold transition-all duration-200 ${
                             active
                               ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
                               : 'bg-black/5 text-zinc-700 dark:bg-white/10 dark:text-zinc-300'
@@ -299,14 +287,12 @@ function AppMenu({
               <MenuRow
                 icon={MENU_ICONS.official}
                 label={t('menu.official')}
-                hint={t('menu.officialHint')}
                 onClick={choose(onOpenOfficial)}
               />
               {isAdmin && (
                 <MenuRow
                   icon={MENU_ICONS.admin}
                   label={t('menu.admin')}
-                  hint={t('menu.adminHint')}
                   onClick={choose(onOpenAdmin)}
                 />
               )}
@@ -316,13 +302,11 @@ function AppMenu({
               <MenuRow
                 icon={MENU_ICONS.legend}
                 label={t('menu.legend')}
-                hint={t('menu.legendHint')}
                 onClick={choose(onOpenLegend)}
               />
               <MenuRow
                 icon={MENU_ICONS.about}
                 label={t('menu.about')}
-                hint={t('menu.aboutHint')}
                 onClick={choose(onOpenAbout)}
               />
 
@@ -341,14 +325,14 @@ function AppMenu({
               )}
             </div>
 
-            <div className="shrink-0 border-t border-black/5 px-4 py-3 dark:border-white/10">
+            <div className="shrink-0 border-t border-black/5 px-4 py-2.5 dark:border-white/10">
               <p className="font-mono text-[10px] font-semibold tracking-[0.18em] text-zinc-500 uppercase dark:text-zinc-400">
                 {t('menu.language')}
               </p>
               <div
                 role="group"
                 aria-label={t('menu.language')}
-                className="mt-2 grid grid-cols-3 gap-1.5"
+                className="mt-1.5 grid grid-cols-3 gap-1.5"
               >
                 {LANGUAGES.map((item) => {
                   const active = item.id === lang
@@ -358,7 +342,7 @@ function AppMenu({
                       type="button"
                       onClick={() => setLang(item.id)}
                       aria-pressed={active}
-                      className={`min-h-11 rounded-full px-2 text-xs font-semibold transition-all duration-300 ${
+                      className={`min-h-9 rounded-full px-2 text-xs font-semibold transition-all duration-300 ${
                         active
                           ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
                           : 'bg-black/5 text-zinc-700 dark:bg-white/10 dark:text-zinc-300'

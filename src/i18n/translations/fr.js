@@ -350,4 +350,35 @@ export default {
   'walkthrough.howto.f4Title': '4. Votre profil et vérification entre voisins',
   'walkthrough.howto.f4Body':
     '3 voisins distincts à moins de 500 m confirment une panne (rouge). Les signalements non confirmés de plus de 24 h sont supprimés automatiquement. Ouvrez Votre profil dans le menu pour suivre ou supprimer vos signalements.',
+
+  'region.uptime': 'Dispo 7j',
+  'region.lastOutage': 'Dernière coupure',
+  'region.noRecentOutage': 'Aucune sur 7j',
+  'region.maintenance': 'Maintenance',
+  'region.noMaintenance': 'Aucune signalée',
+  'region.neighbourhoods': 'Quartiers',
+
+  'station.thresholdHint': '{out}/{min} signalements (requiert >10 pour épuisé)',
+
+  'report.modeLabel': 'Moment de la coupure',
+  'report.modeCurrent': 'Coupure actuelle',
+  'report.modePast': 'Coupure passée (≤7j)',
+  'report.dateTimeLabel': 'Date et heure',
+  'report.durationPastLabel': 'Durée de la coupure (heures)',
+  'report.durationCurrentLabel': 'Durée estimée (heures)',
+  'report.causeLabel': 'Type d’incident',
+  'report.causeUnplanned': 'Panne réseau',
+  'report.causeMaintenance': 'Maintenance',
+
+  'profile.statusPast': 'Coupure passée',
+
+  'community.scope.radius': 'Rayon',
+  'community.scope.neighbourhood': 'Quartier',
+  'community.scope.region': 'Région',
+  'community.scope.global': 'Ville entière',
+  'community.radiusLabel': 'Portée autour de votre position :',
+  'community.desc.radius': 'Discussion publique à {km} km · expire après 3j',
+  'community.desc.neighbourhood': 'Discussion de quartier · {name} · 3j',
+  'community.desc.region': 'Mises à jour régionales · {name} · 3j',
+  'community.desc.global': 'Mises à jour Nouakchott (Ville entière) · 3j',
 }

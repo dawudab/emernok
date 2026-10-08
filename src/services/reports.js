@@ -25,9 +25,8 @@ import {
 
 const REPORTS_COLLECTION = 'reports'
 const USER_STATS_COLLECTION = 'userStats'
-const MAX_REPORTS = 200
+const MAX_REPORTS = 250
 const DAY_MS = 24 * 60 * 60 * 1000
-const REPORTS_CACHE_KEY = 'nem:cachedReports:v1'
 
 export const VOTE_STILL_OUT = 'still_out'
 export const VOTE_RESTORED = 'restored'
@@ -55,7 +54,6 @@ export function ttlCutoff() {
 }
 
 function toMillis(value) {
-  if (typeof value === 'number') return value
   return value?.toMillis?.() ?? 0
 }
 
@@ -65,58 +63,29 @@ export function isWithinHours(report, hours = REPORT_TTL_HOURS) {
   return Date.now() - createdMs <= hours * 60 * 60 * 1000
 }
 
+// Enough neighbours confirmed service is back, so stop showing the outage.
 export function isResolved(report) {
+  if (report.reportMode === 'past') return true
   const restored = report.restoredCount ?? 0
   return restored >= RESTORED_THRESHOLD && restored > (report.stillOutCount ?? 0)
 }
 
 /**
- * Persists a lightweight snapshot of active reports to localStorage so the
- * dashboard immediately renders cached reports when opened offline.
- */
-function writeCachedReports(reports) {
-  try {
-    const serializable = reports.map((report) => ({
-      id: report.id,
-      uid: report.uid,
-      type: report.type,
-      lat: report.lat,
-      lng: report.lng,
-      geohash: report.geohash,
-      stillOutCount: report.stillOutCount ?? 0,
-      restoredCount: report.restoredCount ?? 0,
-      details: report.details ?? undefined,
-      createdAtMs: toMillis(report.createdAt) || Date.now(),
-    }))
-    localStorage.setItem(REPORTS_CACHE_KEY, JSON.stringify(serializable))
-  } catch {
-    // Ignore storage quota or private-browsing errors
-  }
-}
-
-export function readCachedReports() {
-  try {
-    const raw = localStorage.getItem(REPORTS_CACHE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return []
-    return parsed
-      .filter((item) => REPORT_TYPES[item.type] && item.lat != null)
-      .map((item) => ({
-        ...item,
-        createdAt: item.createdAtMs
-          ? Timestamp.fromMillis(item.createdAtMs)
-          : null,
-      }))
-  } catch {
-    return []
-  }
-}
-
-/**
  * Writes the report and the author's rate-limit counter in one transaction.
+ * Supports both current and past outages (up to 7 days), date/time, estimated
+ * duration in hours, cause ('unplanned' | 'maintenance'), and optional details.
  */
-export async function createReport({ uid, type, lat, lng, details }) {
+export async function createReport({
+  uid,
+  type,
+  lat,
+  lng,
+  details,
+  reportMode = 'current',
+  outageStartedAt = '',
+  durationHours = 0,
+  cause = 'unplanned',
+}) {
   if (!db) throw new Error('Firebase is not configured')
   if (!uid) throw new Error('Not signed in yet')
   if (!REPORT_TYPES[type]) throw new Error(`Unknown report type: ${type}`)
@@ -127,6 +96,14 @@ export async function createReport({ uid, type, lat, lng, details }) {
     typeof details === 'string'
       ? details.trim().slice(0, MAX_REPORT_DETAILS_LENGTH)
       : ''
+  const validMode = reportMode === 'past' ? 'past' : 'current'
+  const validCause = cause === 'maintenance' ? 'maintenance' : 'unplanned'
+  const parsedDuration = Math.max(
+    0,
+    Math.min(168, Number(durationHours) || 0),
+  )
+  const trimmedStart =
+    typeof outageStartedAt === 'string' ? outageStartedAt.slice(0, 40) : ''
 
   try {
     await runTransaction(db, async (transaction) => {
@@ -179,6 +156,12 @@ export async function createReport({ uid, type, lat, lng, details }) {
         createdAt: serverTimestamp(),
         stillOutCount: 0,
         restoredCount: 0,
+        reportMode: validMode,
+        cause: validCause,
+        durationHours: parsedDuration,
+      }
+      if (trimmedStart) {
+        payload.outageStartedAt = trimmedStart
       }
       if (trimmedDetails) {
         payload.details = trimmedDetails
@@ -271,12 +254,6 @@ function mapSnapshot(snapshot) {
 }
 
 export function subscribeToReports(onReports, onError) {
-  // Emit cached reports immediately so offline users see the latest known state.
-  const cached = readCachedReports()
-  if (cached.length > 0) {
-    onReports(cached)
-  }
-
   if (!db) return () => {}
 
   const reportsQuery = query(
@@ -287,14 +264,7 @@ export function subscribeToReports(onReports, onError) {
 
   return onSnapshot(
     reportsQuery,
-    { includeMetadataChanges: true },
-    (snapshot) => {
-      const next = mapSnapshot(snapshot)
-      if (next.length > 0 || !snapshot.metadata.fromCache) {
-        writeCachedReports(next)
-        onReports(next)
-      }
-    },
+    (snapshot) => onReports(mapSnapshot(snapshot)),
     (error) => {
       if (isPermissionError(error)) {
         try {
@@ -320,7 +290,6 @@ export function subscribeToUserReports(uid, onReports, onError) {
 
   return onSnapshot(
     userQuery,
-    { includeMetadataChanges: true },
     (snapshot) => {
       const sorted = snapshot.docs
         .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))

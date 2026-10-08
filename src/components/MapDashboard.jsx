@@ -112,8 +112,14 @@ function MapDashboard() {
 
   const regionStats = useMemo(
     () =>
-      computeRegionStats(allPowerClusters, TOP_FUEL_STATIONS, stationStatuses),
-    [allPowerClusters, stationStatuses],
+      computeRegionStats(
+        allPowerClusters,
+        reports,
+        announcements,
+        TOP_FUEL_STATIONS,
+        stationStatuses,
+      ),
+    [allPowerClusters, announcements, reports, stationStatuses],
   )
 
   const describe = useCallback(
@@ -144,7 +150,15 @@ function MapDashboard() {
   }, [canWrite, locate, map, position, requireSignIn])
 
   const handleSubmitReport = useCallback(
-    async ({ type = 'power', coords, details }) => {
+    async ({
+      type = 'power',
+      coords,
+      details,
+      reportMode = 'current',
+      outageStartedAt = '',
+      durationHours = 0,
+      cause = 'unplanned',
+    }) => {
       if (!canWrite) {
         requireSignIn()
         return
@@ -157,6 +171,10 @@ function MapDashboard() {
           lat: coords.lat,
           lng: coords.lng,
           details,
+          reportMode,
+          outageStartedAt,
+          durationHours,
+          cause,
         })
         map?.flyTo(
           [coords.lat, coords.lng],

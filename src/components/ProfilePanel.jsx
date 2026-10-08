@@ -54,6 +54,14 @@ function VerifyEmailNotice({ email }) {
 }
 
 function getReportStatus(report, clusters) {
+  if (report.reportMode === 'past') {
+    return {
+      state: 'past',
+      reporterCount: 1,
+      stillOutCount: report.stillOutCount ?? 0,
+      restoredCount: report.restoredCount ?? 0,
+    }
+  }
   if (isResolved(report)) {
     return {
       state: 'resolved',
@@ -253,6 +261,13 @@ function ProfilePanel({ clusters = [], onFocusReport, onClose }) {
                 </div>
 
                 {/* Live Report Status Pill */}
+                {state === 'past' && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-zinc-500/20 px-2.5 py-1 font-mono text-[10px] font-semibold tracking-wider text-zinc-700 uppercase dark:text-zinc-300">
+                    <Clock size={12} aria-hidden="true" />
+                    {t('profile.statusPast')}
+                    {report.durationHours ? ` · ${report.durationHours}h` : ''}
+                  </span>
+                )}
                 {state === 'resolved' && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2.5 py-1 font-mono text-[10px] font-semibold tracking-wider text-emerald-700 uppercase dark:text-emerald-300">
                     <CheckCircle2 size={12} aria-hidden="true" />

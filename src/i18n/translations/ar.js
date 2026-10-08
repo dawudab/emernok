@@ -329,4 +329,35 @@ export default {
   'walkthrough.howto.f4Title': '4. ملفك الشخصي والتحقق المجتمعي',
   'walkthrough.howto.f4Body':
     'يتحقق البلاغ بمشاركة 3 جيران ضمن 500 متر، وتُحذف البلاغات غير المؤكدة بعد 24 ساعة تلقائيًا. افتح «ملفك الشخصي» من القائمة لمتابعة بلاغاتك أو حذفها.',
+
+  'region.uptime': 'التشغيل (7 أيام)',
+  'region.lastOutage': 'آخر انقطاع',
+  'region.noRecentOutage': 'لا يوجد خلال 7 أيام',
+  'region.maintenance': 'الصيانة',
+  'region.noMaintenance': 'لا توجد صيانة مسجلة',
+  'region.neighbourhoods': 'الأحياء السكنية',
+
+  'station.thresholdHint': '{out}/{min} بلاغ نفاد (يتطلب أكثر من 10 للتأكيد)',
+
+  'report.modeLabel': 'وقت الانقطاع',
+  'report.modeCurrent': 'انقطاع حالي',
+  'report.modePast': 'انقطاع سابق (≤7 أيام)',
+  'report.dateTimeLabel': 'تاريخ ووقت الانقطاع',
+  'report.durationPastLabel': 'كم استمر الانقطاع؟ (بالساعات)',
+  'report.durationCurrentLabel': 'المدة التقديرية للانقطاع (ساعات)',
+  'report.causeLabel': 'نوع الانقطاع',
+  'report.causeUnplanned': 'عطل طارئ',
+  'report.causeMaintenance': 'صيانة',
+
+  'profile.statusPast': 'انقطاع سابق',
+
+  'community.scope.radius': 'النطاق',
+  'community.scope.neighbourhood': 'الحي',
+  'community.scope.region': 'المقاطعة',
+  'community.scope.global': 'نواكشوط',
+  'community.radiusLabel': 'نطاق المحادثة حول موقعك:',
+  'community.desc.radius': 'محادثة عامة ضمن {km} كم من موقعك · تختفي بعد 3 أيام',
+  'community.desc.neighbourhood': 'محادثة الحي · {name} · تختفي بعد 3 أيام',
+  'community.desc.region': 'تحديثات المقاطعة · {name} · تختفي بعد 3 أيام',
+  'community.desc.global': 'المحادثة العامة لمدينة نواكشوط · تختفي بعد 3 أيام',
 }

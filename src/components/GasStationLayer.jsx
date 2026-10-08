@@ -3,8 +3,13 @@ import L from 'leaflet'
 import { ExternalLink, Star } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Marker, Popup } from 'react-leaflet'
+import { NO_GAS_MIN_REPORTS } from '../constants'
 import { useT } from '../i18n/useI18n'
-import { STATUS_HAS_GAS, STATUS_NO_GAS } from '../services/stations'
+import {
+  STATUS_HAS_GAS,
+  STATUS_NO_GAS,
+  resolveStationStatus,
+} from '../services/stations'
 import { MARKER_GLYPHS } from './markerGlyphs'
 
 function buildStationIcon(state) {
@@ -69,7 +74,7 @@ function GasStationLayer({
 
   return stations.map((station) => {
     const record = stationStatuses?.[station.id]
-    const status = record?.status ?? 'default'
+    const status = resolveStationStatus(record)
     const hasGasCount = record?.hasGasCount ?? 0
     const noGasCount = record?.noGasCount ?? 0
     const isBusy = busyStationId === station.id
@@ -113,9 +118,7 @@ function GasStationLayer({
             className={`mt-2 inline-block rounded-full px-2.5 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase ${
               status === STATUS_NO_GAS
                 ? 'bg-red-500/20 text-red-600 dark:text-red-300'
-                : status === STATUS_HAS_GAS
-                  ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
-                  : 'bg-sky-500/15 text-sky-700 dark:text-sky-300'
+                : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
             }`}
           >
             {status === STATUS_NO_GAS
@@ -123,9 +126,16 @@ function GasStationLayer({
               : t('station.available')}
           </span>
 
-          {(hasGasCount > 0 || noGasCount > 0) && (
-            <span className="tabular mt-1.5 block text-xs opacity-70">
-              {t('station.tally', { has: hasGasCount, out: noGasCount })}
+          <span className="tabular mt-1.5 block text-xs opacity-70">
+            {t('station.tally', { has: hasGasCount, out: noGasCount })}
+          </span>
+
+          {status !== STATUS_NO_GAS && noGasCount > 0 && (
+            <span className="tabular mt-0.5 block text-[11px] opacity-65">
+              {t('station.thresholdHint', {
+                out: noGasCount,
+                min: NO_GAS_MIN_REPORTS,
+              })}
             </span>
           )}
 

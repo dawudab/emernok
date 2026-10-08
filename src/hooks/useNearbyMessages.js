@@ -1,25 +1,33 @@
 import { useEffect, useState } from 'react'
-import { subscribeToNearbyMessages } from '../services/messages'
+import { subscribeToCommunityMessages } from '../services/messages'
 
-export function useNearbyMessages(center) {
-  const [state, setState] = useState({ key: null, messages: [], error: null })
+export function useNearbyMessages(options) {
+  const [messages, setMessages] = useState([])
+  const [error, setError] = useState(null)
 
-  // Round the centre so small GPS jitter does not tear down the listeners.
-  const key = center ? `${center.lat.toFixed(3)},${center.lng.toFixed(3)}` : null
+  const scope = options?.scope ?? 'radius'
+  const lat = options?.center?.lat
+  const lng = options?.center?.lng
+  const radiusKm = options?.radiusKm ?? 2
+  const neighbourhoodId = options?.neighbourhoodId ?? null
+  const regionId = options?.regionId ?? null
 
   useEffect(() => {
-    if (!center) return undefined
-    return subscribeToNearbyMessages(
-      center,
-      (messages) => setState({ key, messages, error: null }),
-      (error) => setState({ key, messages: [], error }),
+    return subscribeToCommunityMessages(
+      {
+        scope,
+        center: lat != null && lng != null ? { lat, lng } : null,
+        radiusKm,
+        neighbourhoodId,
+        regionId,
+      },
+      (nextMessages) => {
+        setError(null)
+        setMessages(nextMessages)
+      },
+      setError,
     )
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key])
+  }, [scope, lat, lng, radiusKm, neighbourhoodId, regionId])
 
-  const fresh = state.key === key
-  return {
-    messages: fresh ? state.messages : [],
-    error: fresh ? state.error : null,
-  }
+  return { messages, error }
 }

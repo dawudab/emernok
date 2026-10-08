@@ -1,29 +1,33 @@
-import { distanceBetween, geohashForLocation, geohashQueryBounds } from 'geofire-common'
+import { distanceBetween, geohashForLocation } from 'geofire-common'
 import {
   collection,
+  deleteDoc,
   doc,
-  endAt,
   limit,
   onSnapshot,
   orderBy,
   query,
   runTransaction,
   serverTimestamp,
-  startAt,
 } from 'firebase/firestore'
-import { OperationType, db, handleFirestoreError } from '../firebaseConfig'
 import {
   COMMUNITY_RADIUS_KM,
   DAILY_MESSAGE_LIMIT,
   MESSAGE_COOLDOWN_SECONDS,
   MESSAGE_TTL_HOURS,
+  NOUAKCHOTT_CENTER,
 } from '../constants'
+import { OperationType, db, handleFirestoreError } from '../firebaseConfig'
+import {
+  findRegionForPoint,
+  findSubNeighbourhoodForPoint,
+} from '../utils/regionStats'
 import { RateLimitError } from './reports'
 
 const MESSAGES_COLLECTION = 'messages'
 const CHAT_STATS_COLLECTION = 'chatStats'
 const DAY_MS = 24 * 60 * 60 * 1000
-const PER_BOUND_LIMIT = 60
+const MAX_CHAT_MESSAGES = 200
 
 export const MAX_MESSAGE_LENGTH = 300
 
@@ -38,7 +42,17 @@ function isPermissionError(error) {
   )
 }
 
-export async function sendMessage({ uid, text, lat, lng }) {
+export async function sendMessage({
+  uid,
+  text,
+  lat,
+  lng,
+  scope = 'radius',
+  neighbourhoodId,
+  neighbourhoodName,
+  regionId,
+  regionName,
+}) {
   if (!db) throw new Error('Firebase is not configured')
   if (!uid) throw new Error('Not signed in yet')
 
@@ -47,6 +61,17 @@ export async function sendMessage({ uid, text, lat, lng }) {
   if (trimmed.length > MAX_MESSAGE_LENGTH) {
     throw new Error(`Keep messages under ${MAX_MESSAGE_LENGTH} characters`)
   }
+
+  const safeLat = lat ?? NOUAKCHOTT_CENTER[0]
+  const safeLng = lng ?? NOUAKCHOTT_CENTER[1]
+  const validScope = ['radius', 'neighbourhood', 'region', 'global'].includes(
+    scope,
+  )
+    ? scope
+    : 'radius'
+
+  const sub = findSubNeighbourhoodForPoint(safeLat, safeLng)
+  const reg = findRegionForPoint(safeLat, safeLng)
 
   const statsRef = doc(db, CHAT_STATS_COLLECTION, uid)
   const messageRef = doc(collection(db, MESSAGES_COLLECTION))
@@ -83,12 +108,18 @@ export async function sendMessage({ uid, text, lat, lng }) {
         dailyCount,
         dayStartedAt,
       })
+
       transaction.set(messageRef, {
         uid,
         text: trimmed,
-        lat,
-        lng,
-        geohash: geohashForLocation([lat, lng]),
+        lat: safeLat,
+        lng: safeLng,
+        geohash: geohashForLocation([safeLat, safeLng]),
+        scope: validScope,
+        neighbourhoodId: (neighbourhoodId || sub.id).slice(0, 80),
+        neighbourhoodName: (neighbourhoodName || sub.name).slice(0, 120),
+        regionId: (regionId || reg.id).slice(0, 80),
+        regionName: (regionName || reg.name).slice(0, 120),
         createdAt: serverTimestamp(),
       })
     })
@@ -101,83 +132,113 @@ export async function sendMessage({ uid, text, lat, lng }) {
   }
 }
 
-/**
- * Geohash range queries only approximate a circle, so each bound is a separate
- * listener and the results are merged, distance-filtered and time-filtered on
- * the client. Returns an unsubscribe for all of them.
- */
-export function subscribeToNearbyMessages(center, onMessages, onError) {
-  if (!db || !center) return () => {}
-
-  const radiusM = COMMUNITY_RADIUS_KM * 1000
-  const bounds = geohashQueryBounds([center.lat, center.lng], radiusM)
-  const perBound = new Map()
-  let cancelled = false
-
-  const publish = () => {
-    if (cancelled) return
-    const cutoff = Date.now() - MESSAGE_TTL_HOURS * 60 * 60 * 1000
-    const merged = new Map()
-
-    for (const docs of perBound.values()) {
-      for (const message of docs) {
-        if (message.lat == null) continue
-        const distance =
-          distanceBetween(
-            [center.lat, center.lng],
-            [message.lat, message.lng],
-          ) * 1000
-        if (distance > radiusM) continue
-        // Pending writes have a null timestamp; keep them so the author sees
-        // their own message immediately.
-        const createdAt = toMillis(message.createdAt)
-        if (createdAt && createdAt < cutoff) continue
-        merged.set(message.id, { ...message, distance })
-      }
-    }
-
-    onMessages(
-      [...merged.values()].sort(
-        (a, b) => toMillis(a.createdAt) - toMillis(b.createdAt),
-      ),
-    )
-  }
-
-  const unsubscribes = bounds.map(([start, end], index) =>
-    onSnapshot(
-      query(
-        collection(db, MESSAGES_COLLECTION),
-        orderBy('geohash'),
-        startAt(start),
-        endAt(end),
-        limit(PER_BOUND_LIMIT),
-      ),
-      (snapshot) => {
-        perBound.set(
-          index,
-          snapshot.docs.map((docSnap) => ({
-            id: docSnap.id,
-            ...docSnap.data(),
-          })),
-        )
-        publish()
-      },
-      (error) => {
-        if (isPermissionError(error)) {
-          try {
-            handleFirestoreError(error, OperationType.LIST, MESSAGES_COLLECTION)
-          } catch (wrappedError) {
-            onError?.(wrappedError)
-            return
-          }
-        }
-        onError?.(error)
-      },
+export async function purgeExpiredMessages(expiredMessages) {
+  if (!db || !expiredMessages?.length) return
+  await Promise.allSettled(
+    expiredMessages.map((msg) =>
+      deleteDoc(doc(db, MESSAGES_COLLECTION, msg.id)),
     ),
   )
+}
 
-  return () => {
-    cancelled = true
-    for (const unsubscribe of unsubscribes) unsubscribe()
-  }
+/**
+ * Subscribes to public community messages and filters by the active chat scope:
+ * - 'radius': within radiusKm of center (based on user's current location)
+ * - 'neighbourhood': strictly matching the user's current neighbourhoodId (not radius)
+ * - 'region': strictly matching the user's current regionId
+ * - 'global': city-wide Nouakchott chat
+ * Messages older than MESSAGE_TTL_HOURS (72h / 3 days) disappear automatically.
+ */
+export function subscribeToCommunityMessages(
+  {
+    scope = 'radius',
+    center,
+    radiusKm = COMMUNITY_RADIUS_KM,
+    neighbourhoodId,
+    regionId,
+  },
+  onMessages,
+  onError,
+) {
+  if (!db) return () => {}
+
+  const messagesQuery = query(
+    collection(db, MESSAGES_COLLECTION),
+    orderBy('createdAt', 'desc'),
+    limit(MAX_CHAT_MESSAGES),
+  )
+
+  return onSnapshot(
+    messagesQuery,
+    (snapshot) => {
+      const cutoff = Date.now() - MESSAGE_TTL_HOURS * 60 * 60 * 1000
+      const active = []
+      const expired = []
+
+      for (const docSnap of snapshot.docs) {
+        const message = { id: docSnap.id, ...docSnap.data() }
+        if (message.lat == null || message.lng == null) continue
+
+        const createdMs = toMillis(message.createdAt)
+        if (createdMs && createdMs < cutoff) {
+          expired.push(message)
+          continue
+        }
+
+        const msgScope = message.scope || 'radius'
+        const msgSubId =
+          message.neighbourhoodId ||
+          findSubNeighbourhoodForPoint(message.lat, message.lng).id
+        const msgRegionId =
+          message.regionId ||
+          findRegionForPoint(message.lat, message.lng).id
+
+        const distance = center
+          ? distanceBetween(
+              [center.lat, center.lng],
+              [message.lat, message.lng],
+            ) * 1000
+          : null
+
+        if (scope === 'radius') {
+          if (!center) continue
+          if (msgScope !== 'radius') continue
+          if (distance == null || distance > radiusKm * 1000) continue
+        } else if (scope === 'neighbourhood') {
+          if (msgScope !== 'neighbourhood') continue
+          if (neighbourhoodId && msgSubId !== neighbourhoodId) continue
+        } else if (scope === 'region') {
+          if (msgScope !== 'region') continue
+          if (regionId && msgRegionId !== regionId) continue
+        } else if (scope === 'global') {
+          if (msgScope !== 'global') continue
+        }
+
+        active.push({
+          ...message,
+          distance,
+          neighbourhoodId: msgSubId,
+          regionId: msgRegionId,
+        })
+      }
+
+      if (expired.length > 0) {
+        purgeExpiredMessages(expired)
+      }
+
+      active.sort((a, b) => toMillis(a.createdAt) - toMillis(b.createdAt))
+      onMessages(active)
+    },
+    (error) => {
+      if (isPermissionError(error)) {
+        try {
+          handleFirestoreError(error, OperationType.LIST, MESSAGES_COLLECTION)
+        } catch (wrappedError) {
+          onError?.(wrappedError)
+          return
+        }
+      }
+      onError?.(error)
+    },
+  )
 }

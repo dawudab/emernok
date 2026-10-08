@@ -1,16 +1,30 @@
 import { distanceBetween } from 'geofire-common'
-import { REPORT_TTL_HOURS, VERIFY_MIN_USERS, VERIFY_RADIUS_M } from '../constants'
+import {
+  PAST_OUTAGE_MAX_DAYS,
+  REPORT_TTL_HOURS,
+  VERIFY_MIN_USERS,
+  VERIFY_RADIUS_M,
+} from '../constants'
 import { isResolved, isWithinHours } from '../services/reports'
 
 /**
- * Groups reports of the same utility that sit within VERIFY_RADIUS_M of each
- * other. If a cluster has not been verified within 24 hours, its expired
- * reports are separated out so they can be automatically deleted.
+ * Groups active ('current') reports of the same utility that sit within
+ * VERIFY_RADIUS_M of each other.
+ * - Unverified current reports older than 24 hours are queued for automatic deletion.
+ * - Past outage reports older than 7 days are also queued for automatic deletion.
  */
 export function buildClustersWithExpiry(reports) {
   const rawClusters = []
+  const expiredUnverifiedReports = []
 
   for (const report of reports) {
+    if (report.reportMode === 'past') {
+      if (!isWithinHours(report, PAST_OUTAGE_MAX_DAYS * 24)) {
+        expiredUnverifiedReports.push(report)
+      }
+      continue
+    }
+
     if (isResolved(report)) continue
 
     const match = rawClusters.find(
@@ -42,7 +56,6 @@ export function buildClustersWithExpiry(reports) {
   }
 
   const activeClusters = []
-  const expiredUnverifiedReports = []
 
   for (const cluster of rawClusters) {
     const distinctReporters = new Set(
@@ -50,7 +63,6 @@ export function buildClustersWithExpiry(reports) {
     )
     const isClusterVerified = distinctReporters.size >= VERIFY_MIN_USERS
 
-    // If unverified, reports older than 24h expire and are queued for automatic deletion.
     const validReports = isClusterVerified
       ? cluster.reports
       : cluster.reports.filter((report) => {

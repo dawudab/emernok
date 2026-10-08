@@ -33,9 +33,13 @@ function WalkthroughModal({ onClose, onOpenProfile, onOpenCommunity }) {
       role="dialog"
       aria-modal="true"
       aria-label={t('walkthrough.title')}
-      className="fixed inset-0 z-[1100] flex items-end justify-center bg-black/50 p-3 backdrop-blur-xs sm:items-center sm:p-6"
+      className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/50 p-3 backdrop-blur-xs sm:p-5"
+      onClick={onClose}
     >
-      <div className="glass-sheet flex max-h-[88dvh] w-full max-w-lg flex-col overflow-hidden rounded-3xl shadow-2xl">
+      <div
+        onClick={(event) => event.stopPropagation()}
+        className="glass-sheet flex max-h-[min(82dvh,calc(100vh-2rem))] w-full max-w-lg flex-col overflow-hidden rounded-3xl shadow-2xl"
+      >
         {/* Top bar */}
         <div className="flex items-center justify-between gap-3 border-b border-black/5 px-5 py-4 dark:border-white/10">
           <div className="flex items-center gap-2.5">

@@ -244,7 +244,11 @@ service cloud.firestore {
 
     function isValidReport(data) {
       return data.keys().hasAll(['uid', 'type', 'lat', 'lng', 'geohash', 'createdAt', 'stillOutCount', 'restoredCount'])
-        && data.keys().hasOnly(['uid', 'type', 'lat', 'lng', 'geohash', 'createdAt', 'stillOutCount', 'restoredCount', 'details'])
+        && data.keys().hasOnly([
+          'uid', 'type', 'lat', 'lng', 'geohash', 'createdAt',
+          'stillOutCount', 'restoredCount', 'details',
+          'reportMode', 'outageStartedAt', 'durationHours', 'cause'
+        ])
         && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128
         && data.type is string && data.type.size() <= 20 && data.type in ['power', 'water', 'fuel']
         && data.lat is number && data.lat >= -90 && data.lat <= 90
@@ -253,7 +257,11 @@ service cloud.firestore {
         && data.createdAt is timestamp
         && data.stillOutCount is int && data.stillOutCount >= 0
         && data.restoredCount is int && data.restoredCount >= 0
-        && (!('details' in data) || (data.details is string && data.details.size() <= 280));
+        && (!('details' in data) || (data.details is string && data.details.size() <= 280))
+        && (!('reportMode' in data) || (data.reportMode is string && data.reportMode.size() <= 20 && data.reportMode in ['current', 'past']))
+        && (!('outageStartedAt' in data) || (data.outageStartedAt is string && data.outageStartedAt.size() <= 40))
+        && (!('durationHours' in data) || (data.durationHours is number && data.durationHours >= 0 && data.durationHours <= 168))
+        && (!('cause' in data) || (data.cause is string && data.cause.size() <= 20 && data.cause in ['unplanned', 'maintenance']));
     }
 
     match /reports/{reportId} {
@@ -377,13 +385,21 @@ service cloud.firestore {
 
     function isValidMessage(data) {
       return data.keys().hasAll(['uid', 'text', 'lat', 'lng', 'geohash', 'createdAt'])
-        && data.keys().hasOnly(['uid', 'text', 'lat', 'lng', 'geohash', 'createdAt'])
+        && data.keys().hasOnly([
+          'uid', 'text', 'lat', 'lng', 'geohash', 'createdAt',
+          'scope', 'neighbourhoodId', 'neighbourhoodName', 'regionId', 'regionName'
+        ])
         && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128 && data.uid == request.auth.uid
         && data.text is string && data.text.size() > 0 && data.text.size() <= 300
         && data.lat is number && data.lat >= -90 && data.lat <= 90
         && data.lng is number && data.lng >= -180 && data.lng <= 180
         && data.geohash is string && data.geohash.size() > 0 && data.geohash.size() <= 20
-        && data.createdAt == request.time;
+        && data.createdAt == request.time
+        && (!('scope' in data) || (data.scope is string && data.scope.size() <= 20 && data.scope in ['radius', 'neighbourhood', 'region', 'global']))
+        && (!('neighbourhoodId' in data) || (data.neighbourhoodId is string && data.neighbourhoodId.size() <= 80))
+        && (!('neighbourhoodName' in data) || (data.neighbourhoodName is string && data.neighbourhoodName.size() <= 120))
+        && (!('regionId' in data) || (data.regionId is string && data.regionId.size() <= 80))
+        && (!('regionName' in data) || (data.regionName is string && data.regionName.size() <= 120));
     }
 
     match /messages/{messageId} {
@@ -397,7 +413,10 @@ service cloud.firestore {
         && underChatCap()
         && chatCounterBumped();
 
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if isAdmin()
+        || (isSignedIn() && existing().uid == request.auth.uid)
+        || (isSignedIn() && request.time > existing().createdAt + duration.value(72, 'h'));
     }
 
     function isValidChatStats(data, userId) {

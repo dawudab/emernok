@@ -7,45 +7,33 @@ import {
   runTransaction,
   serverTimestamp,
 } from 'firebase/firestore'
+import { NO_GAS_MIN_REPORTS } from '../constants'
 import { OperationType, db, handleFirestoreError } from '../firebaseConfig'
 
 const STATION_STATUS_COLLECTION = 'stationStatus'
-const STATION_CACHE_KEY = 'nem:cachedStations:v1'
 
 export const STATUS_HAS_GAS = 'has_gas'
 export const STATUS_NO_GAS = 'no_gas'
+
+/**
+ * Over 10 people (11+) must report "No Gas" (and outnumber "Has Gas" reports)
+ * before a fuel station is declared out of gas.
+ */
+export function resolveStationStatus(record) {
+  if (!record) return STATUS_HAS_GAS
+  const noGasCount = record.noGasCount ?? 0
+  const hasGasCount = record.hasGasCount ?? 0
+  if (noGasCount >= NO_GAS_MIN_REPORTS && noGasCount > hasGasCount) {
+    return STATUS_NO_GAS
+  }
+  return STATUS_HAS_GAS
+}
 
 function isPermissionError(error) {
   return (
     error?.code === 'permission-denied' ||
     error?.message?.includes('Missing or insufficient permissions')
   )
-}
-
-function writeCachedStationStatuses(map) {
-  try {
-    const serializable = {}
-    for (const [id, data] of Object.entries(map)) {
-      serializable[id] = {
-        stationId: data.stationId ?? id,
-        status: data.status,
-        hasGasCount: data.hasGasCount ?? 0,
-        noGasCount: data.noGasCount ?? 0,
-      }
-    }
-    localStorage.setItem(STATION_CACHE_KEY, JSON.stringify(serializable))
-  } catch {
-    // Ignore storage errors
-  }
-}
-
-export function readCachedStationStatuses() {
-  try {
-    const raw = localStorage.getItem(STATION_CACHE_KEY)
-    return raw ? JSON.parse(raw) : {}
-  } catch {
-    return {}
-  }
 }
 
 export async function reportStationGasStatus({ stationId, uid, status }) {
@@ -61,11 +49,17 @@ export async function reportStationGasStatus({ stationId, uid, status }) {
     await runTransaction(db, async (transaction) => {
       const snap = await transaction.get(ref)
       if (!snap.exists()) {
+        const hasGasCount = status === STATUS_HAS_GAS ? 1 : 0
+        const noGasCount = status === STATUS_NO_GAS ? 1 : 0
+        const effectiveStatus = resolveStationStatus({
+          hasGasCount,
+          noGasCount,
+        })
         transaction.set(ref, {
           stationId,
-          status,
-          hasGasCount: status === STATUS_HAS_GAS ? 1 : 0,
-          noGasCount: status === STATUS_NO_GAS ? 1 : 0,
+          status: effectiveStatus,
+          hasGasCount,
+          noGasCount,
           updatedBy: uid,
           updatedAt: serverTimestamp(),
         })
@@ -73,12 +67,19 @@ export async function reportStationGasStatus({ stationId, uid, status }) {
       }
 
       const prev = snap.data()
+      const hasGasCount =
+        (prev.hasGasCount ?? 0) + (status === STATUS_HAS_GAS ? 1 : 0)
+      const noGasCount =
+        (prev.noGasCount ?? 0) + (status === STATUS_NO_GAS ? 1 : 0)
+      const effectiveStatus = resolveStationStatus({
+        hasGasCount,
+        noGasCount,
+      })
+
       transaction.update(ref, {
-        status,
-        hasGasCount:
-          (prev.hasGasCount ?? 0) + (status === STATUS_HAS_GAS ? 1 : 0),
-        noGasCount:
-          (prev.noGasCount ?? 0) + (status === STATUS_NO_GAS ? 1 : 0),
+        status: effectiveStatus,
+        hasGasCount,
+        noGasCount,
         updatedBy: uid,
         updatedAt: serverTimestamp(),
       })
@@ -96,27 +97,22 @@ export async function reportStationGasStatus({ stationId, uid, status }) {
 }
 
 export function subscribeToStationStatuses(onStatuses, onError) {
-  const cached = readCachedStationStatuses()
-  if (Object.keys(cached).length > 0) {
-    onStatuses(cached)
-  }
-
   if (!db) return () => {}
 
   const q = query(collection(db, STATION_STATUS_COLLECTION), limit(200))
 
   return onSnapshot(
     q,
-    { includeMetadataChanges: true },
     (snapshot) => {
       const map = {}
       for (const docSnap of snapshot.docs) {
-        map[docSnap.id] = docSnap.data()
+        const data = docSnap.data()
+        map[docSnap.id] = {
+          ...data,
+          status: resolveStationStatus(data),
+        }
       }
-      if (Object.keys(map).length > 0 || !snapshot.metadata.fromCache) {
-        writeCachedStationStatuses(map)
-        onStatuses(map)
-      }
+      onStatuses(map)
     },
     (error) => {
       if (isPermissionError(error)) {

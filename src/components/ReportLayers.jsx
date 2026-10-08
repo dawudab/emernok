@@ -66,13 +66,36 @@ function ReportLayers({
       : STATUS_COLORS.unverified
     const alreadyVoted = votedIds.has(cluster.latest.id)
 
-    // Find a report in this cluster owned by the current user (or latest if admin)
+    // Intensity scales with reporter count for a heatmap-style localized glow
+    const intensity = Math.min(1, cluster.reporterCount / 4)
+
     const deletableReport = isAdmin
       ? cluster.latest
       : cluster.reports.find((r) => uid && r.uid === uid)
 
     return (
       <Fragment key={cluster.id}>
+        {/* Heatmap-style concentric thermal rings showing the localized area where power is failing */}
+        <Circle
+          center={[cluster.lat, cluster.lng]}
+          radius={VERIFY_RADIUS_M * 1.9}
+          interactive={false}
+          pathOptions={{
+            stroke: false,
+            fillColor: color,
+            fillOpacity: 0.08 + intensity * 0.06,
+          }}
+        />
+        <Circle
+          center={[cluster.lat, cluster.lng]}
+          radius={VERIFY_RADIUS_M * 1.3}
+          interactive={false}
+          pathOptions={{
+            stroke: false,
+            fillColor: color,
+            fillOpacity: 0.14 + intensity * 0.1,
+          }}
+        />
         <Circle
           center={[cluster.lat, cluster.lng]}
           radius={VERIFY_RADIUS_M}
@@ -80,7 +103,7 @@ function ReportLayers({
             color,
             weight: cluster.verified ? 2 : 1,
             fillColor: color,
-            fillOpacity: cluster.verified ? 0.35 : 0.15,
+            fillOpacity: cluster.verified ? 0.34 : 0.2,
           }}
         />
         <Marker

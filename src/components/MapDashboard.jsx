@@ -83,6 +83,22 @@ function MapDashboard() {
     return subscribeToStationStatuses((next) => setStationStatuses(next))
   }, [])
 
+  // Ensure Leaflet recalculates its canvas height so tiles and regions fill
+  // the entire iOS standalone Home Screen viewport including the bottom safe-area.
+  useEffect(() => {
+    if (!map) return undefined
+    const refreshSize = () => map.invalidateSize({ animate: false })
+    refreshSize()
+    const timer = window.setTimeout(refreshSize, 150)
+    window.addEventListener('resize', refreshSize)
+    window.addEventListener('orientationchange', refreshSize)
+    return () => {
+      window.clearTimeout(timer)
+      window.removeEventListener('resize', refreshSize)
+      window.removeEventListener('orientationchange', refreshSize)
+    }
+  }, [map])
+
   // Cluster power reports and automatically collect any unverified reports that
   // have been up for longer than 24 hours so they delete automatically.
   const { clusters: allPowerClusters, expiredUnverifiedReports } = useMemo(
@@ -254,8 +270,8 @@ function MapDashboard() {
   }, [locate, map, position])
 
   return (
-    <div className="fixed inset-0 h-full w-full overflow-hidden">
-      <div className="absolute inset-0 z-0">
+    <div className="app-viewport">
+      <div className="absolute inset-0 z-0 h-full w-full">
         <MapContainer
           center={NOUAKCHOTT_CENTER}
           zoom={DEFAULT_ZOOM}

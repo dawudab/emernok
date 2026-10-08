@@ -3,10 +3,10 @@ import { Trash2 } from 'lucide-react'
 import { Fragment, useMemo } from 'react'
 import { Circle, Marker, Popup } from 'react-leaflet'
 import {
+  REPORT_PIN_RADIUS_M,
   REPORT_TYPES,
   STATUS_COLORS,
   VERIFY_MIN_USERS,
-  VERIFY_RADIUS_M,
 } from '../constants'
 import { useT } from '../i18n/useI18n'
 import { VOTE_RESTORED, VOTE_STILL_OUT } from '../services/reports'
@@ -75,10 +75,10 @@ function ReportLayers({
 
     return (
       <Fragment key={cluster.id}>
-        {/* Heatmap-style concentric thermal rings showing the localized area where power is failing */}
+        {/* Heatmap-style concentric thermal rings covering the immediate ~100-200ft area */}
         <Circle
           center={[cluster.lat, cluster.lng]}
-          radius={VERIFY_RADIUS_M * 1.9}
+          radius={REPORT_PIN_RADIUS_M * 1.65}
           interactive={false}
           pathOptions={{
             stroke: false,
@@ -88,7 +88,7 @@ function ReportLayers({
         />
         <Circle
           center={[cluster.lat, cluster.lng]}
-          radius={VERIFY_RADIUS_M * 1.3}
+          radius={REPORT_PIN_RADIUS_M * 1.25}
           interactive={false}
           pathOptions={{
             stroke: false,
@@ -98,7 +98,7 @@ function ReportLayers({
         />
         <Circle
           center={[cluster.lat, cluster.lng]}
-          radius={VERIFY_RADIUS_M}
+          radius={REPORT_PIN_RADIUS_M}
           pathOptions={{
             color,
             weight: cluster.verified ? 2 : 1,

@@ -3,10 +3,26 @@ import {
   ALL_SUB_NEIGHBOURHOODS,
   NEIGHBOURHOODS,
   PAST_OUTAGE_MAX_DAYS,
-  VERIFY_MIN_USERS,
 } from '../constants'
 import { isWithinHours } from '../services/reports'
 import { STATUS_NO_GAS, resolveStationStatus } from '../services/stations'
+
+// Minimum thresholds so a neighbourhood never changes color from just 1 or 2
+// isolated outages — requires both high report volume and wide spatial spread.
+const SUB_WARNING_MIN_CLUSTERS = 3
+const SUB_WARNING_MIN_REPORTERS = 5
+const SUB_WARNING_MIN_SPREAD_ZONES = 3
+
+const SUB_CRITICAL_MIN_REPORTERS = 10
+const SUB_CRITICAL_MIN_VERIFIED_CLUSTERS = 3
+const SUB_CRITICAL_MIN_SPREAD_ZONES = 4
+const SPREAD_ZONE_SEPARATION_M = 250
+
+const REGION_WARNING_MIN_AFFECTED_SUBS = 2
+const REGION_WARNING_MIN_REPORTERS = 12
+const REGION_CRITICAL_MIN_AFFECTED_SUBS = 3
+const REGION_CRITICAL_MIN_CRITICAL_SUBS = 2
+const REGION_CRITICAL_MIN_REPORTERS = 25
 
 function pointInPolygon(lat, lng, polygon) {
   if (!polygon?.length) return false
@@ -56,6 +72,42 @@ export function findSubNeighbourhoodForPoint(lat, lng) {
   return best
 }
 
+/**
+ * Counts how many distinct spatial zones (separated by at least
+ * SPREAD_ZONE_SEPARATION_M) have active outages, plus the maximum distance
+ * span across clusters in the area.
+ */
+function computeSpatialSpread(clusters) {
+  if (!clusters || clusters.length === 0) {
+    return { spreadZones: 0, maxSpanM: 0 }
+  }
+
+  const zones = []
+  let maxSpanM = 0
+
+  for (let i = 0; i < clusters.length; i++) {
+    const c = clusters[i]
+    const farFromExisting = zones.every(
+      (z) =>
+        distanceBetween([z.lat, z.lng], [c.lat, c.lng]) * 1000 >=
+        SPREAD_ZONE_SEPARATION_M,
+    )
+    if (farFromExisting) {
+      zones.push(c)
+    }
+    for (let j = i + 1; j < clusters.length; j++) {
+      const d =
+        distanceBetween(
+          [c.lat, c.lng],
+          [clusters[j].lat, clusters[j].lng],
+        ) * 1000
+      if (d > maxSpanM) maxSpanM = d
+    }
+  }
+
+  return { spreadZones: zones.length, maxSpanM }
+}
+
 function getReportTimestampMs(report) {
   if (report.outageStartedAt) {
     const parsed = Date.parse(report.outageStartedAt)
@@ -64,13 +116,18 @@ function getReportTimestampMs(report) {
   return report.createdAt?.toMillis?.() ?? Date.now()
 }
 
+function toDateBucketKey(ms) {
+  const d = new Date(ms)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
 function computeHistoryMetrics(areaReports, areaAnnouncements) {
   const weekHours = PAST_OUTAGE_MAX_DAYS * 24 // 168h
   const recentReports = areaReports.filter((r) =>
     isWithinHours(r, weekHours),
   )
 
-  // Estimate downtime hours over the past 7 days
   let downtimeHours = 0
   for (const r of recentReports) {
     if (r.durationHours && r.durationHours > 0) {
@@ -85,16 +142,66 @@ function computeHistoryMetrics(areaReports, areaAnnouncements) {
       downtimeHours += 2
     }
   }
-  // Cap downtime so multiple people reporting the same event don't over-subtract
+
   const effectiveDowntime = Math.min(
     weekHours * 0.65,
     downtimeHours / Math.max(1, Math.sqrt(recentReports.length)),
   )
   const uptimePercent = Number(
-    Math.max(35, Math.min(100, ((weekHours - effectiveDowntime) / weekHours) * 100)).toFixed(1),
+    Math.max(
+      35,
+      Math.min(100, ((weekHours - effectiveDowntime) / weekHours) * 100),
+    ).toFixed(1),
   )
 
-  // Latest outage
+  // Build 7-day historical trend (oldest day to today) for Recharts
+  const now = new Date()
+  const dailyMap = new Map()
+  for (let i = PAST_OUTAGE_MAX_DAYS - 1; i >= 0; i--) {
+    const dayDate = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() - i,
+    )
+    const key = toDateBucketKey(dayDate.getTime())
+    const dayLabel = dayDate.toLocaleDateString([], { weekday: 'short' })
+    dailyMap.set(key, {
+      dateKey: key,
+      dayLabel,
+      outages: 0,
+      rawDowntimeH: 0,
+    })
+  }
+
+  for (const r of recentReports) {
+    const ts = getReportTimestampMs(r)
+    const key = toDateBucketKey(ts)
+    const bucket = dailyMap.get(key)
+    if (!bucket) continue
+    bucket.outages += 1
+    const dur =
+      r.durationHours && r.durationHours > 0
+        ? Math.min(24, Number(r.durationHours))
+        : 2
+    bucket.rawDowntimeH += dur
+  }
+
+  const dailyTrend = Array.from(dailyMap.values()).map((bucket) => {
+    const scaledDowntime =
+      bucket.outages > 0
+        ? Math.min(20, bucket.rawDowntimeH / Math.sqrt(bucket.outages))
+        : 0
+    const dayUptime = Number(
+      Math.max(15, Math.min(100, ((24 - scaledDowntime) / 24) * 100)).toFixed(1),
+    )
+    return {
+      dateKey: bucket.dateKey,
+      dayLabel: bucket.dayLabel,
+      uptime: dayUptime,
+      outages: bucket.outages,
+    }
+  })
+
   const sortedByTime = [...recentReports].sort(
     (a, b) => getReportTimestampMs(b) - getReportTimestampMs(a),
   )
@@ -108,7 +215,6 @@ function computeHistoryMetrics(areaReports, areaAnnouncements) {
       }
     : null
 
-  // Recent maintenance (from either official announcements or maintenance-tagged reports)
   const latestOfficial = (areaAnnouncements ?? [])[0] ?? null
   const latestMaintReport =
     sortedByTime.find((r) => r.cause === 'maintenance') ?? null
@@ -130,6 +236,7 @@ function computeHistoryMetrics(areaReports, areaAnnouncements) {
 
   return {
     uptimePercent,
+    dailyTrend,
     lastOutageInfo,
     recentMaintenance,
   }
@@ -170,18 +277,31 @@ export function computeRegionStats(
         (sum, c) => sum + (c.reporterCount ?? 1),
         0,
       )
+      const { spreadZones, maxSpanM } = computeSpatialSpread(subClusters)
 
-      // A smaller sub-neighbourhood reflects a power outage if a good number of people report it
+      // Neighbourhood Color-Change Rule:
+      // 1 or 2 outages in a neighbourhood NEVER change the neighbourhood's color.
+      // It only changes to 'warning' or 'critical' when there is a significant
+      // number of reports spread across multiple separated zones of the neighbourhood.
       let subStatus = 'normal'
-      if (verifiedSubClusters >= 1 || totalSubReporters >= VERIFY_MIN_USERS) {
+      if (
+        (totalSubReporters >= SUB_CRITICAL_MIN_REPORTERS ||
+          verifiedSubClusters >= SUB_CRITICAL_MIN_VERIFIED_CLUSTERS) &&
+        (spreadZones >= SUB_CRITICAL_MIN_SPREAD_ZONES ||
+          (spreadZones >= 3 && maxSpanM >= 500))
+      ) {
         subStatus = 'critical'
-      } else if (subClusters.length > 0) {
+      } else if (
+        subClusters.length >= SUB_WARNING_MIN_CLUSTERS &&
+        totalSubReporters >= SUB_WARNING_MIN_REPORTERS &&
+        spreadZones >= SUB_WARNING_MIN_SPREAD_ZONES
+      ) {
         subStatus = 'warning'
       }
 
       const subPenalty =
-        verifiedSubClusters * 30 +
-        (subClusters.length - verifiedSubClusters) * 12
+        verifiedSubClusters * 15 +
+        (subClusters.length - verifiedSubClusters) * 5
       const subPowerLevel = Math.max(15, 100 - subPenalty)
 
       const history = computeHistoryMetrics(subReports, regionAnnouncements)
@@ -194,6 +314,7 @@ export function computeRegionStats(
         outageCount: subClusters.length,
         verifiedOutages: verifiedSubClusters,
         reporterCount: totalSubReporters,
+        spreadZones,
         ...history,
       }
     })
@@ -205,7 +326,6 @@ export function computeRegionStats(
       0,
     )
 
-    // Spread check: how many distinct sub-neighbourhoods in this region have outages?
     const criticalSubCount = subNeighbourhoodStats.filter(
       (s) => s.overallStatus === 'critical',
     ).length
@@ -213,25 +333,25 @@ export function computeRegionStats(
       (s) => s.overallStatus !== 'normal',
     ).length
 
-    // Whole-region status rule:
+    // Whole-Region Color-Change Rule:
     // 1. Gas status NEVER affects region power status.
-    // 2. The entire region only turns 'critical' if there is a significant amount of
-    //    reported outages AND they are spread out across multiple neighbourhoods in the region.
+    // 2. Requires multiple neighbourhoods across the region to be significantly
+    //    disrupted before the region changes color.
     let overallStatus = 'normal'
     if (
-      (criticalSubCount >= 2 && totalActiveReporters >= 6) ||
-      (affectedSubCount >= 3 && verifiedOutages >= 2)
+      affectedSubCount >= REGION_CRITICAL_MIN_AFFECTED_SUBS &&
+      criticalSubCount >= REGION_CRITICAL_MIN_CRITICAL_SUBS &&
+      totalActiveReporters >= REGION_CRITICAL_MIN_REPORTERS
     ) {
       overallStatus = 'critical'
     } else if (
-      affectedSubCount >= 2 ||
-      verifiedOutages >= 1 ||
-      totalActiveReporters >= 4
+      affectedSubCount >= REGION_WARNING_MIN_AFFECTED_SUBS &&
+      totalActiveReporters >= REGION_WARNING_MIN_REPORTERS
     ) {
       overallStatus = 'warning'
     }
 
-    const penalty = verifiedOutages * 18 + unverifiedOutages * 6
+    const penalty = verifiedOutages * 10 + unverifiedOutages * 3
     const powerLevel = Math.max(20, 100 - penalty)
 
     const regionStations = (stations ?? [])

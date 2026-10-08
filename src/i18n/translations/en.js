@@ -342,6 +342,9 @@ export default {
     '3 distinct neighbours within 500m verify an outage (turning it red). Unverified reports older than 24h auto-delete. Open Your Profile from the menu to track or delete your reports.',
 
   'region.uptime': '7d Uptime',
+  'region.trendTitle': '7-Day Uptime & Outage Trend',
+  'region.trendUptime': 'Uptime %',
+  'region.trendOutages': 'Outages',
   'region.lastOutage': 'Last outage',
   'region.noRecentOutage': 'None in last 7d',
   'region.maintenance': 'Maintenance',

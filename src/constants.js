@@ -18,8 +18,10 @@ export const COMMUNITY_RADIUS_KM = 2
 // Over 10 people (11+) must report no gas before a station is marked Out of Gas
 export const NO_GAS_MIN_REPORTS = 11
 
-// 3 distinct reporters within 500m = "Verified Community Outage"
-export const VERIFY_RADIUS_M = 500
+// 3 distinct reporters within ~200ft (60m) = "Verified Community Outage"
+// Individual report circle covers the immediate ~150ft (45m) area around the user
+export const REPORT_PIN_RADIUS_M = 45
+export const VERIFY_RADIUS_M = 60
 export const VERIFY_MIN_USERS = 3
 
 // Map pin and circle colours show *validation status*, not utility type:

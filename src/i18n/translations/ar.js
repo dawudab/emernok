@@ -332,6 +332,9 @@ export default {
     'يتحقق البلاغ بمشاركة 3 جيران ضمن 500 متر، وتُحذف البلاغات غير المؤكدة بعد 24 ساعة تلقائيًا. افتح «ملفك الشخصي» من القائمة لمتابعة بلاغاتك أو حذفها.',
 
   'region.uptime': 'التشغيل (7 أيام)',
+  'region.trendTitle': 'مؤشر 7 أيام: التشغيل والانقطاعات',
+  'region.trendUptime': 'التشغيل %',
+  'region.trendOutages': 'انقطاعات',
   'region.lastOutage': 'آخر انقطاع',
   'region.noRecentOutage': 'لا يوجد خلال 7 أيام',
   'region.maintenance': 'الصيانة',

@@ -353,6 +353,9 @@ export default {
     '3 voisins distincts à moins de 500 m confirment une panne (rouge). Les signalements non confirmés de plus de 24 h sont supprimés automatiquement. Ouvrez Votre profil dans le menu pour suivre ou supprimer vos signalements.',
 
   'region.uptime': 'Dispo 7j',
+  'region.trendTitle': 'Tendance 7j : Dispo et Coupures',
+  'region.trendUptime': 'Dispo %',
+  'region.trendOutages': 'Coupures',
   'region.lastOutage': 'Dernière coupure',
   'region.noRecentOutage': 'Aucune sur 7j',
   'region.maintenance': 'Maintenance',

@@ -1,5 +1,6 @@
 import {
   Activity,
+  BarChart3,
   Clock,
   ExternalLink,
   MapPin,
@@ -9,6 +10,15 @@ import {
 } from 'lucide-react'
 import { Fragment, useState } from 'react'
 import { Polygon, Popup } from 'react-leaflet'
+import {
+  Area,
+  Bar,
+  ComposedChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { useT } from '../i18n/useI18n'
 import { STATUS_NO_GAS } from '../services/stations'
 
@@ -43,6 +53,102 @@ function formatShortTime(ms, fallback) {
   })
 }
 
+function SevenDayTrendChart({ data, t }) {
+  if (!data?.length) return null
+
+  return (
+    <div className="rounded-xl bg-black/5 p-2 dark:bg-white/5">
+      <div className="mb-1 flex items-center justify-between gap-1 text-[10px]">
+        <span className="flex items-center gap-1 font-semibold opacity-85">
+          <BarChart3
+            size={11}
+            className="text-emerald-500"
+            aria-hidden="true"
+          />
+          {t('region.trendTitle')}
+        </span>
+        <span className="flex items-center gap-2 font-mono text-[9px] opacity-75">
+          <span className="inline-flex items-center gap-1">
+            <span className="size-1.5 rounded-full bg-emerald-500" />
+            {t('region.trendUptime')}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="size-1.5 rounded-full bg-amber-500" />
+            {t('region.trendOutages')}
+          </span>
+        </span>
+      </div>
+
+      <div className="h-24 w-full" dir="ltr">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart
+            data={data}
+            margin={{ top: 4, right: 2, left: -24, bottom: 0 }}
+          >
+            <defs>
+              <linearGradient id="uptimeFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#10b981" stopOpacity={0.38} />
+                <stop offset="95%" stopColor="#10b981" stopOpacity={0.04} />
+              </linearGradient>
+            </defs>
+            <XAxis
+              dataKey="dayLabel"
+              tick={{ fontSize: 9, fill: '#71717a' }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              yAxisId="uptime"
+              domain={[0, 100]}
+              ticks={[0, 50, 100]}
+              tick={{ fontSize: 8, fill: '#71717a' }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              yAxisId="outages"
+              orientation="right"
+              allowDecimals={false}
+              hide
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'rgba(9, 9, 11, 0.92)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: '10px',
+                padding: '4px 8px',
+                fontSize: '10px',
+                color: '#fafafa',
+              }}
+              labelStyle={{ fontWeight: 700, marginBottom: 2 }}
+              formatter={(value, name) =>
+                name === 'uptime'
+                  ? [`${value}%`, t('region.trendUptime')]
+                  : [value, t('region.trendOutages')]
+              }
+            />
+            <Area
+              yAxisId="uptime"
+              type="monotone"
+              dataKey="uptime"
+              stroke="#10b981"
+              strokeWidth={1.8}
+              fill="url(#uptimeFill)"
+            />
+            <Bar
+              yAxisId="outages"
+              dataKey="outages"
+              barSize={7}
+              fill="#f59e0b"
+              radius={[3, 3, 0, 0]}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  )
+}
+
 function RegionPopupContent({ region, initialSubId = null }) {
   const t = useT()
   const [selectedSubId, setSelectedSubId] = useState(initialSubId)
@@ -54,7 +160,7 @@ function RegionPopupContent({ region, initialSubId = null }) {
     STATUS_STYLE[activeTarget.overallStatus] ?? STATUS_STYLE.normal
 
   return (
-    <div className="w-60 max-w-[76vw] space-y-2 text-zinc-900 dark:text-zinc-100">
+    <div className="max-h-[min(64dvh,22rem)] w-64 max-w-[78vw] space-y-2 overflow-y-auto overscroll-contain pe-0.5 text-zinc-900 dark:text-zinc-100">
       {/* Header: Region or Neighbourhood name + Power Grid status badge */}
       <div className="flex items-start justify-between gap-2 border-b border-black/10 pb-1.5 dark:border-white/10">
         <div className="min-w-0">
@@ -131,6 +237,9 @@ function RegionPopupContent({ region, initialSubId = null }) {
           </span>
         </div>
       </div>
+
+      {/* 7-Day Historical Trend of Uptime & Outage Frequency (Recharts) */}
+      <SevenDayTrendChart data={activeTarget.dailyTrend} t={t} />
 
       {/* Last Power Outage & Recent Maintenance */}
       <div className="space-y-1 rounded-xl bg-black/5 px-2.5 py-1.5 text-[10px] dark:bg-white/5">
@@ -232,7 +341,7 @@ function RegionPopupContent({ region, initialSubId = null }) {
           </span>
         </div>
 
-        <ul className="mt-1 max-h-20 space-y-1 overflow-y-auto pe-0.5">
+        <ul className="mt-1 space-y-1">
           {region.stations.map((station) => {
             const isOut = station.status === STATUS_NO_GAS
             const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`
@@ -294,7 +403,7 @@ function RegionZonesLayer({ visible, regions }) {
 
     return (
       <Fragment key={region.id}>
-        {/* Sub-neighbourhoods inside the region: show subtle grid lines and highlight localized outages */}
+        {/* Sub-neighbourhoods inside the region */}
         {region.subNeighbourhoods.map((sub) => {
           const subPalette =
             STATUS_STYLE[sub.overallStatus] ?? STATUS_STYLE.normal
@@ -320,8 +429,8 @@ function RegionZonesLayer({ visible, regions }) {
               }}
             >
               <Popup
-                maxWidth={265}
-                minWidth={225}
+                maxWidth={280}
+                minWidth={240}
                 autoPan={true}
                 autoPanPaddingTopLeft={[16, 76]}
                 autoPanPaddingBottomRight={[16, 76]}

@@ -3,7 +3,6 @@ import {
   BarChart3,
   Clock,
   ExternalLink,
-  MapPin,
   Star,
   Wrench,
   Zap,
@@ -35,12 +34,6 @@ const STATUS_STYLE = {
     color: '#ef4444',
     fillColor: '#ef4444',
   },
-}
-
-const DOT_CLASS = {
-  normal: 'bg-emerald-500',
-  warning: 'bg-amber-400',
-  critical: 'bg-red-500',
 }
 
 function formatShortTime(ms, fallback) {
@@ -280,50 +273,6 @@ function RegionPopupContent({ region, initialSubId = null }) {
               <span className="opacity-70">{t('region.noMaintenance')}</span>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Sub-Neighbourhoods (Quartiers) Breakdown */}
-      <div>
-        <div className="flex items-center justify-between text-[10px]">
-          <span className="flex items-center gap-1 font-semibold opacity-80">
-            <MapPin size={10} aria-hidden="true" />
-            {t('region.neighbourhoods')}
-          </span>
-          {selectedSub && (
-            <button
-              type="button"
-              onClick={() => setSelectedSubId(null)}
-              className="text-[10px] font-semibold text-sky-600 dark:text-sky-400"
-            >
-              {t('filter.all')}
-            </button>
-          )}
-        </div>
-        <div className="mt-1 grid grid-cols-2 gap-1">
-          {region.subNeighbourhoods.map((sub) => {
-            const active = selectedSubId === sub.id
-            return (
-              <button
-                key={sub.id}
-                type="button"
-                onClick={() =>
-                  setSelectedSubId((prev) => (prev === sub.id ? null : sub.id))
-                }
-                className={`flex items-center gap-1.5 rounded-lg px-2 py-1 text-start text-[10px] transition-colors ${
-                  active
-                    ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
-                    : 'bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10'
-                }`}
-              >
-                <span
-                  aria-hidden="true"
-                  className={`size-2 shrink-0 rounded-full ${DOT_CLASS[sub.overallStatus]}`}
-                />
-                <span className="truncate font-medium">{sub.name}</span>
-              </button>
-            )
-          })}
         </div>
       </div>
 

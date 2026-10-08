@@ -182,7 +182,7 @@ function ReportActionBar({
                       : t('report.durationCurrentLabel')}
                   </span>
                   <span className="tabular font-bold text-zinc-800 dark:text-zinc-200">
-                    {durationHours}h
+                    {t('unit.hoursShort', { count: durationHours })}
                   </span>
                 </span>
                 <div className="flex flex-wrap items-center gap-1.5">
@@ -199,7 +199,7 @@ function ReportActionBar({
                             : 'bg-black/5 text-zinc-700 dark:bg-white/10 dark:text-zinc-300'
                         }`}
                       >
-                        {preset}h
+                        {t('unit.hoursShort', { count: preset })}
                       </button>
                     )
                   })}

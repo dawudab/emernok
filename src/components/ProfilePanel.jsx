@@ -9,7 +9,7 @@ import {
 import { useAuth } from '../context/useAuth'
 import { useOfficial } from '../hooks/useOfficial'
 import { useMyReports } from '../hooks/useReports'
-import { useT } from '../i18n/useI18n'
+import { useI18n, useT } from '../i18n/useI18n'
 import { refreshIdentity, signOut } from '../services/auth'
 import { deleteReport, isResolved } from '../services/reports'
 import { useTheme } from '../theme/useTheme'
@@ -98,13 +98,21 @@ function ProfilePanel({ clusters = [], onFocusReport, onClose }) {
   const { role, isOfficial } = useOfficial(uid)
   const { reports, error } = useMyReports(uid)
   const { isDark } = useTheme()
-  const t = useT()
+  const { t, lang } = useI18n()
   const [copied, setCopied] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
   const [deleteError, setDeleteError] = useState(null)
 
+  const locale = lang === 'ar' ? 'ar-MR' : lang === 'fr' ? 'fr-FR' : 'en-US'
   const formatTime = (createdAt) =>
-    createdAt?.toDate ? createdAt.toDate().toLocaleString() : t('popup.sending')
+    createdAt?.toDate
+      ? createdAt.toDate().toLocaleString(locale, {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : t('popup.sending')
 
   const standing = isAnonymous
     ? t('profile.anonymous')
@@ -265,7 +273,9 @@ function ProfilePanel({ clusters = [], onFocusReport, onClose }) {
                   <span className="inline-flex items-center gap-1 rounded-full bg-zinc-500/20 px-2.5 py-1 font-mono text-[10px] font-semibold tracking-wider text-zinc-700 uppercase dark:text-zinc-300">
                     <Clock size={12} aria-hidden="true" />
                     {t('profile.statusPast')}
-                    {report.durationHours ? ` · ${report.durationHours}h` : ''}
+                    {report.durationHours
+                      ? ` · ${t('unit.hoursShort', { count: report.durationHours })}`
+                      : ''}
                   </span>
                 )}
                 {state === 'resolved' && (

@@ -67,16 +67,16 @@ export function accentFor(type, isDark) {
 
 export const REPORT_TYPE_LIST = [REPORT_TYPES.power]
 
-/**
- * Shared geometric vertex graph for Nouakchott's 9 moughataas (regions) and
- * 36 neighbourhoods (quartiers), shaped along the Atlantic coastline,
- * Route de Nouadhibou, Route d'Akjoujt, Av. Gamal Abdel Nasser, Av. Kennedy,
- * Route de l'Espoir, and Route de Rosso.
- *
- * Every adjacent region and neighbourhood references the exact same shared
- * vertices so there is zero empty space between polygons while avoiding
- * artificial square grids.
- */
+export function getLocalName(item, lang = 'ar') {
+  if (!item) return ''
+  return lang === 'ar' ? (item.nameAr ?? item.name) : item.name
+}
+
+export function getLocalArea(item, lang = 'ar') {
+  if (!item) return ''
+  return lang === 'ar' ? (item.areaAr ?? item.area) : item.area
+}
+
 function mid(a, b, t = 0.5) {
   return [
     Number((a[0] + (b[0] - a[0]) * t).toFixed(5)),
@@ -92,20 +92,13 @@ function centroid(pts) {
   ]
 }
 
-/**
- * Subdivides an organic multi-vertex region polygon into 4 interlocking
- * geometric neighbourhood polygons that share an angled interior hub vertex and
- * the exact outer boundary vertices of the region (so the 4 neighbourhoods
- * union to 100% of the region with zero gaps).
- */
 function carveOrganicSubNeighbourhoods(
   regionId,
   names,
+  namesAr,
   chains,
   hubPoint,
 ) {
-  // chains = [chainNW, chainNE, chainSE, chainSW] where each chain is the
-  // sequence of outer boundary vertices from split[i] to split[(i+1)%4].
   return chains.map((outerChain, index) => {
     const polygon = [...outerChain, hubPoint]
     const [lat, lng] = centroid(polygon)
@@ -113,6 +106,7 @@ function carveOrganicSubNeighbourhoods(
       id: `${regionId}-q${index + 1}`,
       regionId,
       name: names[index],
+      nameAr: namesAr?.[index] ?? names[index],
       lat,
       lng,
       polygon,
@@ -126,57 +120,57 @@ const V = {
   C_N1: [18.152, -16.022],
   C_N2: [18.128, -16.025],
   C_N3: [18.106, -16.026],
-  C_TZ_SB: [18.085, -16.027], // Coast junction: Tevragh Zeina / Sebkha
+  C_TZ_SB: [18.085, -16.027],
   C_SB_MID: [18.073, -16.028],
-  C_SB_EM: [18.061, -16.029], // Coast junction: Sebkha / El Mina
+  C_SB_EM: [18.061, -16.029],
   C_EM_MID: [18.046, -16.03],
-  C_EM_RY: [18.029, -16.028], // Coast junction: El Mina / Riyad (Port Sud)
+  C_EM_RY: [18.029, -16.028],
   C_RY_MID: [18.008, -16.025],
   C_S1: [17.986, -16.018],
 
   // Northern Desert Perimeter
   N_TZ_MID: [18.154, -15.996],
-  N_TZ_TY: [18.153, -15.972], // North junction: Tevragh Zeina / Teyarett
+  N_TZ_TY: [18.153, -15.972],
   N_TY_MID: [18.155, -15.955],
-  N_TY_DN: [18.152, -15.938], // North junction: Teyarett / Dar Naim
+  N_TY_DN: [18.152, -15.938],
   N_DN_MID: [18.149, -15.908],
   N_E1: [18.142, -15.878],
 
   // Upper Interior Corridor (Route de Nouadhibou & Route d'Akjoujt junctions)
   J_TZ_TY_MID: [18.131, -15.974],
-  J_TZ_TY_KS: [18.112, -15.971], // Tri-point: Tevragh Zeina / Teyarett / Ksar
+  J_TZ_TY_KS: [18.112, -15.971],
   J_TY_KS_MID: [18.11, -15.954],
   J_TY_DN_MID: [18.132, -15.941],
-  J_TY_DN_KS: [18.107, -15.939], // Tri-point: Teyarett / Dar Naim / Ksar
-  J_DN_KS_TJ: [18.104, -15.926], // Tri-point: Dar Naim / Ksar / Toujounine
+  J_TY_DN_KS: [18.107, -15.939],
+  J_DN_KS_TJ: [18.104, -15.926],
   J_DN_TJ_MID: [18.106, -15.901],
-  E_DN_TJ: [18.108, -15.874], // East junction: Dar Naim / Toujounine
+  E_DN_TJ: [18.108, -15.874],
 
   // Central Corridor (Av. Gamal Abdel Nasser, Capitale, BMD, Carrefour Madrid)
   J_TZ_KS_MID: [18.097, -15.972],
-  J_TZ_SB_KS: [18.084, -15.976], // Tri-point: Tevragh Zeina / Sebkha / Ksar (Capitale)
+  J_TZ_SB_KS: [18.084, -15.976],
   J_TZ_SB_MID: [18.085, -16.002],
   J_SB_KS_MID: [18.074, -15.974],
-  J_SB_EM_KS: [18.063, -15.973], // Tri-point: Sebkha / El Mina / Ksar (Sixième/Socogim)
+  J_SB_EM_KS: [18.063, -15.973],
   J_SB_EM_MID: [18.062, -16.001],
 
   // Madrid & Route de l'Espoir Corridor
-  J_KS_AR_W: [18.072, -15.961], // Tri-point: Ksar / El Mina / Arafat
-  J_KS_AR_MID: [18.075, -15.946], // Carrefour Madrid
-  J_KS_TJ_AR: [18.077, -15.93], // Tri-point: Ksar / Toujounine / Arafat
+  J_KS_AR_W: [18.072, -15.961],
+  J_KS_AR_MID: [18.075, -15.946],
+  J_KS_TJ_AR: [18.077, -15.93],
   J_KS_TJ_MID: [18.091, -15.928],
 
   // Southern Interior Corridor (Route de Rosso & Toujounine Sud)
   J_EM_AR_MID: [18.051, -15.962],
-  J_EM_AR_RY: [18.033, -15.963], // Tri-point: El Mina / Arafat / Riyad (PK 7 Ouest)
+  J_EM_AR_RY: [18.033, -15.963],
   J_EM_RY_MID: [18.031, -15.995],
   J_AR_TJ_MID: [18.056, -15.927],
-  J_AR_TJ_RY: [18.035, -15.922], // Tri-point: Arafat / Toujounine / Riyad
+  J_AR_TJ_RY: [18.035, -15.922],
   J_AR_RY_MID: [18.034, -15.943],
 
   // Eastern & Southern Perimeter
   E_TJ_MID: [18.072, -15.869],
-  E_TJ_RY: [18.037, -15.876], // East junction: Toujounine / Riyad
+  E_TJ_RY: [18.037, -15.876],
   J_TJ_RY_MID: [18.036, -15.899],
   E_RY_MID: [18.01, -15.884],
   S_RY_E: [17.984, -15.895],
@@ -188,6 +182,7 @@ export const NEIGHBOURHOODS = [
   {
     id: 'tevragh-zeina',
     name: 'Tevragh Zeina',
+    nameAr: 'تفرغ زينة',
     lat: 18.116,
     lng: -15.998,
     radiusM: 2800,
@@ -213,6 +208,12 @@ export const NEIGHBOURHOODS = [
         'Socogim PS & Las Palmas',
       ],
       [
+        'الشاطئ الشمالي والرباط',
+        'حي السفارات والملعب الأولمبي',
+        'إيلو K و C والعيادة',
+        'سوكوجيم PS ولاس بالماس',
+      ],
+      [
         [V.C_N2, V.C_N1, V.N_TZ_MID],
         [V.N_TZ_MID, V.N_TZ_TY, V.J_TZ_TY_MID, V.J_TZ_TY_KS],
         [V.J_TZ_TY_KS, V.J_TZ_KS_MID, V.J_TZ_SB_KS, V.J_TZ_SB_MID],
@@ -224,6 +225,7 @@ export const NEIGHBOURHOODS = [
   {
     id: 'teyarett',
     name: 'Teyarett',
+    nameAr: 'تيارت',
     lat: 18.131,
     lng: -15.956,
     radiusM: 2500,
@@ -246,6 +248,12 @@ export const NEIGHBOURHOODS = [
         'Carrefour Teyarett',
       ],
       [
+        'تيارت الشمال الغربي',
+        'عين الطلح والشمال الشرقي',
+        'تيارت الجنوبية والسوق',
+        'ملتقى طرق تيارت',
+      ],
+      [
         [V.J_TZ_TY_MID, V.N_TZ_TY, V.N_TY_MID],
         [V.N_TY_MID, V.N_TY_DN, V.J_TY_DN_MID],
         [V.J_TY_DN_MID, V.J_TY_DN_KS, V.J_TY_KS_MID],
@@ -257,6 +265,7 @@ export const NEIGHBOURHOODS = [
   {
     id: 'dar-naim',
     name: 'Dar Naim',
+    nameAr: 'دار النعيم',
     lat: 18.128,
     lng: -15.908,
     radiusM: 2800,
@@ -279,6 +288,12 @@ export const NEIGHBOURHOODS = [
         'Carrefour Tensoueilim',
       ],
       [
+        'دار النعيم الغربية',
+        'دار النعيم الشمال الشرقي',
+        'الزعتر وطريق أكجوجت',
+        'ملتقى تنسويلم',
+      ],
+      [
         [V.J_TY_DN_MID, V.N_TY_DN, V.N_DN_MID],
         [V.N_DN_MID, V.N_E1, mid(V.N_E1, V.E_DN_TJ)],
         [mid(V.N_E1, V.E_DN_TJ), V.E_DN_TJ, V.J_DN_TJ_MID],
@@ -290,6 +305,7 @@ export const NEIGHBOURHOODS = [
   {
     id: 'sebkha',
     name: 'Sebkha',
+    nameAr: 'السبخة',
     lat: 18.073,
     lng: -16.0,
     radiusM: 2200,
@@ -312,6 +328,12 @@ export const NEIGHBOURHOODS = [
         'Sebkha Sud-Ouest',
       ],
       [
+        'شاطئ الصيادين / السينكيم',
+        'سوق العاصمة الغربي',
+        'البصرة والسبخة الشرقية',
+        'السبخة الجنوب الغربي',
+      ],
+      [
         [V.C_SB_MID, V.C_TZ_SB, V.J_TZ_SB_MID],
         [V.J_TZ_SB_MID, V.J_TZ_SB_KS, V.J_SB_KS_MID],
         [V.J_SB_KS_MID, V.J_SB_EM_KS, V.J_SB_EM_MID],
@@ -323,6 +345,7 @@ export const NEIGHBOURHOODS = [
   {
     id: 'ksar',
     name: 'Ksar',
+    nameAr: 'القصر',
     lat: 18.091,
     lng: -15.952,
     radiusM: 2200,
@@ -349,6 +372,12 @@ export const NEIGHBOURHOODS = [
         'Socogim K & Capitale Est',
       ],
       [
+        'إيلو V و BMD شمال',
+        'القصر القديم والشمال الشرقي',
+        'ملتقى مدريد شمال',
+        'سوكوجيم K وشرق العاصمة',
+      ],
+      [
         [V.J_TZ_KS_MID, V.J_TZ_TY_KS, V.J_TY_KS_MID],
         [V.J_TY_KS_MID, V.J_TY_DN_KS, V.J_DN_KS_TJ, V.J_KS_TJ_MID],
         [V.J_KS_TJ_MID, V.J_KS_TJ_AR, V.J_KS_AR_MID, V.J_KS_AR_W],
@@ -360,6 +389,7 @@ export const NEIGHBOURHOODS = [
   {
     id: 'toujounine',
     name: 'Toujounine',
+    nameAr: 'توجنين',
     lat: 18.072,
     lng: -15.901,
     radiusM: 3000,
@@ -384,6 +414,12 @@ export const NEIGHBOURHOODS = [
         'Bouhdida & Toujounine Ouest',
       ],
       [
+        'حي الساكن وملح الشمالي',
+        'توجنين الشمال الشرقي',
+        'تنويش وطريق الأمل',
+        'بوحديدة وتوجنين الغربية',
+      ],
+      [
         [V.J_KS_TJ_MID, V.J_DN_KS_TJ, V.J_DN_TJ_MID],
         [V.J_DN_TJ_MID, V.E_DN_TJ, V.E_TJ_MID],
         [V.E_TJ_MID, V.E_TJ_RY, V.J_TJ_RY_MID, V.J_AR_TJ_RY],
@@ -395,6 +431,7 @@ export const NEIGHBOURHOODS = [
   {
     id: 'el-mina',
     name: 'El Mina',
+    nameAr: 'الميناء',
     lat: 18.047,
     lng: -15.995,
     radiusM: 2500,
@@ -418,6 +455,12 @@ export const NEIGHBOURHOODS = [
         'Port de l’Amitié & Plage Sud',
       ],
       [
+        'الميناء والمنطقة الصناعية',
+        'السيزيم ووسط الميناء',
+        'روبينيت وغرب طريق روصو',
+        'ميناء الصداقة والشاطئ الجنوبي',
+      ],
+      [
         [V.C_EM_MID, V.C_SB_EM, V.J_SB_EM_MID],
         [V.J_SB_EM_MID, V.J_SB_EM_KS, V.J_KS_AR_W, V.J_EM_AR_MID],
         [V.J_EM_AR_MID, V.J_EM_AR_RY, V.J_EM_RY_MID],
@@ -429,6 +472,7 @@ export const NEIGHBOURHOODS = [
   {
     id: 'arafat',
     name: 'Arafat',
+    nameAr: 'عرفات',
     lat: 18.054,
     lng: -15.944,
     radiusM: 2600,
@@ -446,9 +490,15 @@ export const NEIGHBOURHOODS = [
       'arafat',
       [
         'Carrefour Madrid Sud',
-        'Arafat Marché &Mosquée Nour',
+        'Arafat Marché & Mosquée Nour',
         'Daya & Arafat Sud-Est',
         'Poteau 3 & Rosso Est',
+      ],
+      [
+        'ملتقى مدريد جنوب',
+        'سوق عرفات ومسجد النور',
+        'الداية وعرفات الجنوب الشرقي',
+        'العمود 3 وشرق طريق روصو',
       ],
       [
         [V.J_EM_AR_MID, V.J_KS_AR_W, V.J_KS_AR_MID],
@@ -462,6 +512,7 @@ export const NEIGHBOURHOODS = [
   {
     id: 'riyad',
     name: 'Riyad',
+    nameAr: 'الرياض',
     lat: 18.009,
     lng: -15.952,
     radiusM: 3200,
@@ -489,6 +540,12 @@ export const NEIGHBOURHOODS = [
         'PK 9 & Dunes Sud-Ouest',
       ],
       [
+        'الكيلومتر 7 وغرب الرياض',
+        'الكيلومتر 8 والترحيل شمال شرق',
+        'الكيلومتر 10 وجنوب شرق الرياض',
+        'الكيلومتر 9 والكثبان الجنوبية',
+      ],
+      [
         [V.C_RY_MID, V.C_EM_RY, V.J_EM_RY_MID, V.J_EM_AR_RY],
         [V.J_EM_AR_RY, V.J_AR_RY_MID, V.J_AR_TJ_RY, V.J_TJ_RY_MID, V.E_TJ_RY],
         [V.E_TJ_RY, V.E_RY_MID, V.S_RY_E, V.S_RY_MID1],
@@ -503,6 +560,7 @@ export const ALL_SUB_NEIGHBOURHOODS = NEIGHBOURHOODS.flatMap((region) =>
   region.subNeighbourhoods.map((sub) => ({
     ...sub,
     regionName: region.name,
+    regionNameAr: region.nameAr,
   })),
 )
 
@@ -518,9 +576,11 @@ export const GAS_STATIONS = [
   {
     id: 'total-tevragh-zeina',
     name: 'TotalEnergies Tevragh Zeina',
+    nameAr: 'توتال إنرجيز تفرغ زينة',
     brand: 'TotalEnergies',
     regionId: 'tevragh-zeina',
     area: 'Tevragh Zeina · Av. Charles de Gaulle',
+    areaAr: 'تفرغ زينة · شارع شارل ديغول',
     rating: 4.9,
     reviews: 342,
     lat: 18.1012,
@@ -529,9 +589,11 @@ export const GAS_STATIONS = [
   {
     id: 'vivo-shell-clinique',
     name: 'Shell / Vivo Energy Clinique',
+    nameAr: 'شل / فيفو إنرجي العيادة',
     brand: 'Shell',
     regionId: 'tevragh-zeina',
     area: 'Tevragh Zeina · Carrefour Clinique',
+    areaAr: 'تفرغ زينة · ملتقى العيادة',
     rating: 4.8,
     reviews: 289,
     lat: 18.0895,
@@ -540,9 +602,11 @@ export const GAS_STATIONS = [
   {
     id: 'total-bmd',
     name: 'TotalEnergies Carrefour BMD',
+    nameAr: 'توتال إنرجيز ملتقى BMD',
     brand: 'TotalEnergies',
     regionId: 'ksar',
     area: 'Ksar · Av. Gamal Abdel Nasser',
+    areaAr: 'القصر · شارع جمال عبد الناصر',
     rating: 4.8,
     reviews: 310,
     lat: 18.0858,
@@ -551,9 +615,11 @@ export const GAS_STATIONS = [
   {
     id: 'shell-madrid',
     name: 'Shell Carrefour Madrid',
+    nameAr: 'شل ملتقى مدريد',
     brand: 'Shell',
     regionId: 'ksar',
     area: 'Ksar · Carrefour Madrid',
+    areaAr: 'القصر · ملتقى مدريد',
     rating: 4.7,
     reviews: 264,
     lat: 18.0782,
@@ -562,9 +628,11 @@ export const GAS_STATIONS = [
   {
     id: 'maurioil-sebkha',
     name: 'MauriOil Sebkha Capitale',
+    nameAr: 'موري أويل السبخة العاصمة',
     brand: 'MauriOil',
     regionId: 'sebkha',
     area: 'Sebkha · Marché Capitale',
+    areaAr: 'السبخة · سوق العاصمة',
     rating: 4.6,
     reviews: 198,
     lat: 18.0742,
@@ -573,9 +641,11 @@ export const GAS_STATIONS = [
   {
     id: 'total-el-mina',
     name: 'TotalEnergies El Mina Port',
+    nameAr: 'توتال إنرجيز الميناء',
     brand: 'TotalEnergies',
     regionId: 'el-mina',
     area: 'El Mina · Route du Port',
+    areaAr: 'الميناء · طريق الميناء',
     rating: 4.7,
     reviews: 215,
     lat: 18.0524,
@@ -584,9 +654,11 @@ export const GAS_STATIONS = [
   {
     id: 'total-arafat',
     name: 'TotalEnergies Arafat',
+    nameAr: 'توتال إنرجيز عرفات',
     brand: 'TotalEnergies',
     regionId: 'arafat',
     area: 'Arafat · Route de Rosso',
+    areaAr: 'عرفات · طريق روصو',
     rating: 4.8,
     reviews: 276,
     lat: 18.0535,
@@ -595,9 +667,11 @@ export const GAS_STATIONS = [
   {
     id: 'star-oil-poteau-3',
     name: 'Star Oil Poteau 3',
+    nameAr: 'ستار أويل العمود 3',
     brand: 'Star Oil',
     regionId: 'arafat',
     area: 'Arafat · Poteau 3',
+    areaAr: 'عرفات · العمود 3',
     rating: 4.6,
     reviews: 184,
     lat: 18.0468,
@@ -606,9 +680,11 @@ export const GAS_STATIONS = [
   {
     id: 'total-pk7',
     name: 'TotalEnergies PK 7 Riyad',
+    nameAr: 'توتال إنرجيز الكيلومتر 7 الرياض',
     brand: 'TotalEnergies',
     regionId: 'riyad',
     area: 'Riyad · PK 7 Route de Rosso',
+    areaAr: 'الرياض · الكيلومتر 7 طريق روصو',
     rating: 4.7,
     reviews: 192,
     lat: 18.0185,
@@ -617,9 +693,11 @@ export const GAS_STATIONS = [
   {
     id: 'total-teyarett',
     name: 'TotalEnergies Teyarett',
+    nameAr: 'توتال إنرجيز تيارت',
     brand: 'TotalEnergies',
     regionId: 'teyarett',
     area: 'Teyarett · Route de Nouadhibou',
+    areaAr: 'تيارت · طريق نواذيبو',
     rating: 4.8,
     reviews: 231,
     lat: 18.1245,
@@ -628,9 +706,11 @@ export const GAS_STATIONS = [
   {
     id: 'star-oil-dar-naim',
     name: 'Star Oil Dar Naim',
+    nameAr: 'ستار أويل دار النعيم',
     brand: 'Star Oil',
     regionId: 'dar-naim',
     area: 'Dar Naim · Carrefour Tensoueilim',
+    areaAr: 'دار النعيم · ملتقى تنسويلم',
     rating: 4.6,
     reviews: 167,
     lat: 18.1185,
@@ -639,9 +719,11 @@ export const GAS_STATIONS = [
   {
     id: 'total-toujounine',
     name: 'TotalEnergies Toujounine',
+    nameAr: 'توتال إنرجيز توجنين',
     brand: 'TotalEnergies',
     regionId: 'toujounine',
     area: 'Toujounine · Route de l’Espoir',
+    areaAr: 'توجنين · طريق الأمل',
     rating: 4.7,
     reviews: 208,
     lat: 18.0842,

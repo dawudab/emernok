@@ -15,11 +15,14 @@ export default {
   'common.publish': 'نشر',
   'common.discard': 'حذف',
 
-  'app.city': 'N.E.M.',
+  'app.city': 'N.E.M. · خريطة الطاقة في نواكشوط',
   'app.counts': '{verified} مؤكدة · {total} نشطة',
 
   'menu.label': 'القائمة',
   'menu.guest': 'زائر',
+  'menu.signedIn': 'مسجّل الدخول',
+  'menu.browsing': 'تصفّح كزائر',
+  'menu.unverified': 'غير مؤكّد بعد',
   'menu.statusVerified': 'موثّق — صلاحية كاملة',
   'menu.statusGuest': 'للاطلاع فقط. سجّل الدخول للإبلاغ والنشر والتصويت.',
   'menu.statusUnverified': 'أكّد بريدك الإلكتروني لتتمكن من الإبلاغ.',
@@ -287,6 +290,7 @@ export default {
   'walkthrough.next': 'التالي',
   'walkthrough.done': 'استكشف الخريطة',
 
+  'walkthrough.overview.kicker': 'خريطة الطاقة في نواكشوط · N.E.M.',
   'walkthrough.overview.lead':
     'لامركزية الوعي بالبنية التحتية في نواكشوط.',
   'walkthrough.overview.body':
@@ -364,4 +368,9 @@ export default {
   'community.desc.neighbourhood': 'محادثة الحي · {name} · تختفي بعد 3 أيام',
   'community.desc.region': 'تحديثات المقاطعة · {name} · تختفي بعد 3 أيام',
   'community.desc.global': 'المحادثة العامة لمدينة نواكشوط · تختفي بعد 3 أيام',
+  'theme.light': 'التبديل إلى الوضع النهاري',
+  'theme.dark': 'التبديل إلى الوضع الليلي',
+  'unit.hoursShort': '{count} س',
+  'unit.m': '{count} م',
+  'unit.km': '{count} كم',
 }

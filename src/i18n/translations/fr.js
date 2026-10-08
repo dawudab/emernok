@@ -16,6 +16,9 @@ export default {
 
   'menu.label': 'Menu',
   'menu.guest': 'Invité',
+  'menu.signedIn': 'Connecté',
+  'menu.browsing': 'Navigation invité',
+  'menu.unverified': 'Non vérifié',
   'menu.statusVerified': 'Vérifié — accès complet',
   'menu.statusGuest':
     'Consultation seule. Connectez-vous pour signaler, publier et voter.',
@@ -308,6 +311,7 @@ export default {
   'walkthrough.next': 'Suivant',
   'walkthrough.done': 'Explorer la carte',
 
+  'walkthrough.overview.kicker': 'Carte Énergie de Nouakchott · N.E.M.',
   'walkthrough.overview.lead':
     'Décentraliser la visibilité des infrastructures à Nouakchott.',
   'walkthrough.overview.body':
@@ -385,4 +389,9 @@ export default {
   'community.desc.neighbourhood': 'Discussion de quartier · {name} · 3j',
   'community.desc.region': 'Mises à jour régionales · {name} · 3j',
   'community.desc.global': 'Mises à jour Nouakchott (Ville entière) · 3j',
+  'theme.light': 'Passer au thème clair',
+  'theme.dark': 'Passer au thème sombre',
+  'unit.hoursShort': '{count}h',
+  'unit.m': '{count} m',
+  'unit.km': '{count} km',
 }

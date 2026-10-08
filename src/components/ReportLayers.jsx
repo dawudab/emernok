@@ -8,7 +8,7 @@ import {
   STATUS_COLORS,
   VERIFY_MIN_USERS,
 } from '../constants'
-import { useT } from '../i18n/useI18n'
+import { useI18n } from '../i18n/useI18n'
 import { VOTE_RESTORED, VOTE_STILL_OUT } from '../services/reports'
 import { MARKER_GLYPHS } from './markerGlyphs'
 
@@ -32,10 +32,18 @@ function ReportLayers({
   isAdmin,
   votedIds,
 }) {
-  const t = useT()
+  const { t, lang, dir } = useI18n()
+  const locale = lang === 'ar' ? 'ar-MR' : lang === 'fr' ? 'fr-FR' : 'en-US'
 
   const formatTime = (createdAt) =>
-    createdAt?.toDate ? createdAt.toDate().toLocaleString() : t('popup.sending')
+    createdAt?.toDate
+      ? createdAt.toDate().toLocaleString(locale, {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : t('popup.sending')
 
   const icons = useMemo(() => {
     const entries = []
@@ -111,76 +119,78 @@ function ReportLayers({
           icon={icons[`${cluster.type}:${cluster.verified}`]}
         >
           <Popup>
-            <span className="block text-sm font-semibold">
-              {t(type.shortKey)}
-            </span>
-            <span
-              className="mt-1 block font-mono text-[10px] font-semibold tracking-[0.15em] uppercase"
-              style={{ color }}
-            >
-              {cluster.verified
-                ? t('popup.verified')
-                : t('popup.unconfirmed', {
-                    count: cluster.reporterCount,
-                    total: VERIFY_MIN_USERS,
-                  })}
-            </span>
-            {cluster.details && (
-              <span className="mt-1.5 block rounded-xl bg-black/5 px-2.5 py-1.5 text-xs italic dark:bg-white/10">
-                “{cluster.details}”
+            <div dir={dir} className="text-start">
+              <span className="block text-sm font-semibold">
+                {t(type.shortKey)}
               </span>
-            )}
-            <span className="tabular mt-1 block text-xs opacity-70">
-              {t('popup.latest', { time: formatTime(cluster.latest.createdAt) })}
-            </span>
-            <span className="tabular mt-0.5 block text-xs opacity-70">
-              {t('popup.tally', {
-                out: cluster.stillOutCount,
-                back: cluster.restoredCount,
-              })}
-            </span>
-
-            {alreadyVoted ? (
-              <span className="mt-2 block text-xs font-medium opacity-70">
-                {t('popup.voted')}
-              </span>
-            ) : (
-              <span className="mt-2 flex gap-2">
-                <button
-                  type="button"
-                  disabled={!canVote}
-                  onClick={() => onVote(cluster.latest.id, VOTE_STILL_OUT)}
-                  className="min-h-9 flex-1 rounded-full bg-red-500 px-2 text-xs font-semibold text-white transition-all duration-300 disabled:opacity-40"
-                >
-                  {t('popup.stillOut')}
-                </button>
-                <button
-                  type="button"
-                  disabled={!canVote}
-                  onClick={() => onVote(cluster.latest.id, VOTE_RESTORED)}
-                  className="min-h-9 flex-1 rounded-full bg-emerald-500 px-2 text-xs font-semibold text-white transition-all duration-300 disabled:opacity-40"
-                >
-                  {t('popup.back')}
-                </button>
-              </span>
-            )}
-
-            {deletableReport && (
-              <button
-                type="button"
-                onClick={() => onDeleteReport(deletableReport.id)}
-                className="mt-2 flex min-h-8 w-full items-center justify-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-3 text-xs font-semibold text-red-600 transition-colors hover:bg-red-500/20 dark:text-red-400"
+              <span
+                className="mt-1 block font-mono text-[10px] font-semibold tracking-[0.15em] uppercase"
+                style={{ color }}
               >
-                <Trash2 size={12} strokeWidth={2.2} aria-hidden="true" />
-                <span>{t('report.delete')}</span>
-              </button>
-            )}
-
-            {!canVote && (
-              <span className="mt-1 block text-[11px] opacity-70">
-                {t('popup.signInToVote')}
+                {cluster.verified
+                  ? t('popup.verified')
+                  : t('popup.unconfirmed', {
+                      count: cluster.reporterCount,
+                      total: VERIFY_MIN_USERS,
+                    })}
               </span>
-            )}
+              {cluster.details && (
+                <span className="mt-1.5 block rounded-xl bg-black/5 px-2.5 py-1.5 text-xs italic dark:bg-white/10">
+                  «{cluster.details}»
+                </span>
+              )}
+              <span className="tabular mt-1 block text-xs opacity-70">
+                {t('popup.latest', { time: formatTime(cluster.latest.createdAt) })}
+              </span>
+              <span className="tabular mt-0.5 block text-xs opacity-70">
+                {t('popup.tally', {
+                  out: cluster.stillOutCount,
+                  back: cluster.restoredCount,
+                })}
+              </span>
+
+              {alreadyVoted ? (
+                <span className="mt-2 block text-xs font-medium opacity-70">
+                  {t('popup.voted')}
+                </span>
+              ) : (
+                <span className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    disabled={!canVote}
+                    onClick={() => onVote(cluster.latest.id, VOTE_STILL_OUT)}
+                    className="min-h-9 flex-1 rounded-full bg-red-500 px-2 text-xs font-semibold text-white transition-all duration-300 disabled:opacity-40"
+                  >
+                    {t('popup.stillOut')}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!canVote}
+                    onClick={() => onVote(cluster.latest.id, VOTE_RESTORED)}
+                    className="min-h-9 flex-1 rounded-full bg-emerald-500 px-2 text-xs font-semibold text-white transition-all duration-300 disabled:opacity-40"
+                  >
+                    {t('popup.back')}
+                  </button>
+                </span>
+              )}
+
+              {deletableReport && (
+                <button
+                  type="button"
+                  onClick={() => onDeleteReport(deletableReport.id)}
+                  className="mt-2 flex min-h-8 w-full items-center justify-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-3 text-xs font-semibold text-red-600 transition-colors hover:bg-red-500/20 dark:text-red-400"
+                >
+                  <Trash2 size={12} strokeWidth={2.2} aria-hidden="true" />
+                  <span>{t('report.delete')}</span>
+                </button>
+              )}
+
+              {!canVote && (
+                <span className="mt-1 block text-[11px] opacity-70">
+                  {t('popup.signInToVote')}
+                </span>
+              )}
+            </div>
           </Popup>
         </Marker>
       </Fragment>

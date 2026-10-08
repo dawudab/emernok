@@ -25,8 +25,42 @@ import {
 
 const REPORTS_COLLECTION = 'reports'
 const USER_STATS_COLLECTION = 'userStats'
+const REPORTS_CACHE_KEY = 'nem.cachedReports.v1'
 const MAX_REPORTS = 250
 const DAY_MS = 24 * 60 * 60 * 1000
+
+export function readCachedReports() {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = window.localStorage.getItem(REPORTS_CACHE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((item) => item && REPORT_TYPES[item.type] && item.lat != null)
+      .map((item) => ({
+        ...item,
+        createdAt: item.createdAtMs
+          ? Timestamp.fromMillis(item.createdAtMs)
+          : null,
+      }))
+  } catch {
+    return []
+  }
+}
+
+function writeCachedReports(reports) {
+  if (typeof window === 'undefined') return
+  try {
+    const serializable = reports.slice(0, 100).map((report) => ({
+      ...report,
+      createdAtMs: report.createdAt?.toMillis?.() ?? null,
+    }))
+    window.localStorage.setItem(REPORTS_CACHE_KEY, JSON.stringify(serializable))
+  } catch {
+    // Ignore storage quota errors
+  }
+}
 
 export const VOTE_STILL_OUT = 'still_out'
 export const VOTE_RESTORED = 'restored'
@@ -264,7 +298,11 @@ export function subscribeToReports(onReports, onError) {
 
   return onSnapshot(
     reportsQuery,
-    (snapshot) => onReports(mapSnapshot(snapshot)),
+    (snapshot) => {
+      const mapped = mapSnapshot(snapshot)
+      writeCachedReports(mapped)
+      onReports(mapped)
+    },
     (error) => {
       if (isPermissionError(error)) {
         try {

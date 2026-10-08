@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
-import { ANNOUNCEMENT_DEFAULT_HOURS, NEIGHBOURHOODS } from '../constants'
+import {
+  ANNOUNCEMENT_DEFAULT_HOURS,
+  NEIGHBOURHOODS,
+  getLocalName,
+} from '../constants'
 import { useAuth } from '../context/useAuth'
-import { useT } from '../i18n/useI18n'
+import { useI18n, useT } from '../i18n/useI18n'
 import {
   approveRequest,
   discardDraft,
@@ -40,7 +44,7 @@ function Heading({ children }) {
 }
 
 function DraftRow({ draft, adminUid }) {
-  const t = useT()
+  const { t, lang } = useI18n()
   // A scraper can guess the neighbourhood, but a human confirms it before it
   // reaches the map.
   const [areaId, setAreaId] = useState(draft.areaId ?? NEIGHBOURHOODS[0].id)
@@ -60,7 +64,7 @@ function DraftRow({ draft, adminUid }) {
         >
           {NEIGHBOURHOODS.map((area) => (
             <option key={area.id} value={area.id}>
-              {area.name}
+              {getLocalName(area, lang)}
             </option>
           ))}
         </select>

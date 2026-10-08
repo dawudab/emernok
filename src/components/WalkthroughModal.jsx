@@ -11,7 +11,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { useState } from 'react'
-import { useT } from '../i18n/useI18n'
+import { useI18n } from '../i18n/useI18n'
 
 const STEPS = [
   { id: 'overview', icon: Compass, tabKey: 'walkthrough.tab.overview' },
@@ -21,12 +21,14 @@ const STEPS = [
 ]
 
 function WalkthroughModal({ onClose, onOpenProfile, onOpenCommunity }) {
-  const t = useT()
+  const { t, dir, lang } = useI18n()
   const [stepIndex, setStepIndex] = useState(0)
 
   const currentStep = STEPS[stepIndex]
   const isFirst = stepIndex === 0
   const isLast = stepIndex === STEPS.length - 1
+  const PrevIcon = dir === 'rtl' ? ChevronRight : ChevronLeft
+  const NextIcon = dir === 'rtl' ? ChevronLeft : ChevronRight
 
   return (
     <div
@@ -44,7 +46,7 @@ function WalkthroughModal({ onClose, onOpenProfile, onOpenCommunity }) {
         <div className="flex items-center justify-between gap-3 border-b border-black/5 px-5 py-4 dark:border-white/10">
           <div className="flex items-center gap-2.5">
             <span className="flex size-9 items-center justify-center rounded-full bg-amber-400 font-mono text-sm font-bold text-zinc-950 shadow-[0_0_16px_rgba(250,204,21,0.55)]">
-              ?
+              {lang === 'ar' ? '؟' : '?'}
             </span>
             <div>
               <p className="font-mono text-[10px] font-semibold tracking-[0.18em] text-zinc-500 uppercase dark:text-zinc-400">
@@ -97,7 +99,7 @@ function WalkthroughModal({ onClose, onOpenProfile, onOpenCommunity }) {
             <div className="space-y-4">
               <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4">
                 <p className="font-mono text-xs font-bold tracking-wider text-amber-700 uppercase dark:text-amber-300">
-                  Nouakchott Energy Map · N.E.M.
+                  {t('walkthrough.overview.kicker')}
                 </p>
                 <p className="mt-1.5 text-sm font-medium text-zinc-900 dark:text-zinc-100">
                   {t('walkthrough.overview.lead')}
@@ -294,7 +296,7 @@ function WalkthroughModal({ onClose, onOpenProfile, onOpenCommunity }) {
             onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
             className="btn-ghost flex min-h-10 items-center gap-1 rounded-full px-3.5 text-xs disabled:opacity-35"
           >
-            <ChevronLeft size={15} aria-hidden="true" />
+            <PrevIcon size={15} aria-hidden="true" />
             <span>{t('walkthrough.prev')}</span>
           </button>
 
@@ -319,7 +321,7 @@ function WalkthroughModal({ onClose, onOpenProfile, onOpenCommunity }) {
               className="btn-primary flex min-h-10 items-center gap-1 rounded-full px-4 text-xs"
             >
               <span>{t('walkthrough.next')}</span>
-              <ChevronRight size={15} aria-hidden="true" />
+              <NextIcon size={15} aria-hidden="true" />
             </button>
           )}
         </div>

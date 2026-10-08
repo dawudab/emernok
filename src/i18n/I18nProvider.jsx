@@ -5,19 +5,13 @@ import fr from './translations/fr'
 import { DEFAULT_LANGUAGE, I18nContext, LANGUAGES } from './useI18n'
 
 const DICTIONARIES = { ar, fr, en }
-const STORAGE_KEY = 'emernok:lang'
+const STORAGE_KEY = 'nem:user-lang-v2'
 
 function initialLanguage() {
+  if (typeof window === 'undefined') return DEFAULT_LANGUAGE
   const stored = window.localStorage.getItem(STORAGE_KEY)
   if (stored && DICTIONARIES[stored]) return stored
-
-  // Respect the browser only when it asks for a language we actually have;
-  // otherwise Arabic stays the default.
-  const preferred = window.navigator.languages ?? [window.navigator.language]
-  for (const tag of preferred) {
-    const base = tag?.split('-')[0]
-    if (DICTIONARIES[base]) return base
-  }
+  // Arabic is always the default language unless the user explicitly switches it.
   return DEFAULT_LANGUAGE
 }
 
@@ -31,12 +25,10 @@ function interpolate(template, vars) {
 function I18nProvider({ children }) {
   const [lang, setLang] = useState(initialLanguage)
 
-  const dir = LANGUAGES.find((entry) => entry.id === lang)?.dir ?? 'ltr'
+  const dir = LANGUAGES.find((entry) => entry.id === lang)?.dir ?? 'rtl'
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, lang)
-    // Leaflet, form controls and the whole layout key off these, so they have
-    // to be set on the document rather than a wrapper element.
     document.documentElement.lang = lang
     document.documentElement.dir = dir
   }, [dir, lang])
@@ -44,9 +36,7 @@ function I18nProvider({ children }) {
   const t = useCallback(
     (key, vars) => {
       const dictionary = DICTIONARIES[lang] ?? DICTIONARIES[DEFAULT_LANGUAGE]
-      // Falling back to English keeps a half-translated string visible rather
-      // than leaking a raw key into the UI.
-      const template = dictionary[key] ?? en[key]
+      const template = dictionary[key] ?? ar[key] ?? en[key]
       if (template == null) {
         if (import.meta.env.DEV) console.warn(`Missing translation: ${key}`)
         return key

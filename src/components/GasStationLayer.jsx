@@ -3,8 +3,12 @@ import L from 'leaflet'
 import { ExternalLink, Star } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Marker, Popup } from 'react-leaflet'
-import { NO_GAS_MIN_REPORTS } from '../constants'
-import { useT } from '../i18n/useI18n'
+import {
+  NO_GAS_MIN_REPORTS,
+  getLocalArea,
+  getLocalName,
+} from '../constants'
+import { useI18n } from '../i18n/useI18n'
 import {
   STATUS_HAS_GAS,
   STATUS_NO_GAS,
@@ -34,11 +38,11 @@ function buildStationIcon(state) {
   })
 }
 
-function formatDistance(metres) {
+function formatDistance(metres, t) {
   if (metres == null) return ''
   return metres < 1000
-    ? `${Math.round(metres)}m`
-    : `${(metres / 1000).toFixed(1)}km`
+    ? t('unit.m', { count: Math.round(metres) })
+    : t('unit.km', { count: (metres / 1000).toFixed(1) })
 }
 
 function GasStationLayer({
@@ -49,7 +53,7 @@ function GasStationLayer({
   canVote,
   onReportGas,
 }) {
-  const t = useT()
+  const { t, lang, dir } = useI18n()
   const [busyStationId, setBusyStationId] = useState(null)
 
   const icons = useMemo(
@@ -95,22 +99,25 @@ function GasStationLayer({
         icon={icons[status] ?? icons.default}
       >
         <Popup>
-          <div className="flex items-center justify-between gap-2">
-            <span className="block text-sm font-semibold">{station.name}</span>
-            {station.rating && (
-              <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-400/20 px-2 py-0.5 font-mono text-[11px] font-bold text-amber-600 dark:text-amber-300">
-                <Star size={11} fill="currentColor" aria-hidden="true" />
-                {station.rating.toFixed(1)}
-                {station.reviews ? ` (${station.reviews})` : ''}
+          <div dir={dir} className="text-start">
+            <div className="flex items-center justify-between gap-2">
+              <span className="block text-sm font-semibold">
+                {getLocalName(station, lang)}
               </span>
-            )}
-          </div>
-          <span className="mt-0.5 block text-xs opacity-75">
-            {station.area}
-          </span>
+              {station.rating && (
+                <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-400/20 px-2 py-0.5 font-mono text-[11px] font-bold text-amber-600 dark:text-amber-300">
+                  <Star size={11} fill="currentColor" aria-hidden="true" />
+                  {station.rating.toFixed(1)}
+                  {station.reviews ? ` (${station.reviews})` : ''}
+                </span>
+              )}
+            </div>
+            <span className="mt-0.5 block text-xs opacity-75">
+              {getLocalArea(station, lang)}
+            </span>
           {distMetres != null && (
             <span className="tabular mt-1 block text-xs opacity-70">
-              {t('community.away', { distance: formatDistance(distMetres) })}
+              {t('community.away', { distance: formatDistance(distMetres, t) })}
             </span>
           )}
 
@@ -173,6 +180,7 @@ function GasStationLayer({
               {t('popup.signInToVote')}
             </span>
           )}
+          </div>
         </Popup>
       </Marker>
     )

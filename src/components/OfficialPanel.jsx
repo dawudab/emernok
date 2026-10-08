@@ -5,10 +5,11 @@ import {
   MAX_ANNOUNCEMENT_LENGTH,
   NEIGHBOURHOODS,
   OFFICIAL_COLOR,
+  getLocalName,
 } from '../constants'
 import { useAuth } from '../context/useAuth'
 import { useOfficial } from '../hooks/useOfficial'
-import { useT } from '../i18n/useI18n'
+import { useI18n, useT } from '../i18n/useI18n'
 import { createAnnouncement, submitRoleRequest } from '../services/officials'
 import Sheet from './Sheet'
 import SignInPanel from './SignInPanel'
@@ -103,7 +104,7 @@ function ApplicationForm({ uid }) {
 }
 
 function NoticeForm({ uid, org }) {
-  const t = useT()
+  const { t, lang } = useI18n()
   const [areaId, setAreaId] = useState(NEIGHBOURHOODS[0].id)
   const [text, setText] = useState('')
   const [hours, setHours] = useState(ANNOUNCEMENT_DEFAULT_HOURS)
@@ -153,7 +154,7 @@ function NoticeForm({ uid, org }) {
         >
           {NEIGHBOURHOODS.map((area) => (
             <option key={area.id} value={area.id}>
-              {area.name}
+              {getLocalName(area, lang)}
             </option>
           ))}
         </select>

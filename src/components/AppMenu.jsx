@@ -75,7 +75,9 @@ function ToggleRow({ icon: Icon, label, checked, onChange }) {
       >
         <span
           className={`inline-block size-4.5 rounded-full bg-white shadow transition-transform duration-200 ${
-            checked ? 'translate-x-5' : 'translate-x-0.5'
+            checked
+              ? 'ltr:translate-x-5 rtl:-translate-x-5'
+              : 'ltr:translate-x-0.5 rtl:-translate-x-0.5'
           }`}
         />
       </span>
@@ -154,14 +156,14 @@ function AppMenu({
         title={t('walkthrough.title')}
         className="icon-button size-11 font-mono text-base font-bold outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-white"
       >
-        ?
+        {lang === 'ar' ? '؟' : '?'}
       </button>
 
       <button
         type="button"
         onClick={toggleTheme}
-        aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
-        title={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+        aria-label={isDark ? t('theme.light') : t('theme.dark')}
+        title={isDark ? t('theme.light') : t('theme.dark')}
         className="icon-button size-11 outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-white"
       >
         {isDark ? (

@@ -18,6 +18,9 @@ export default {
 
   'menu.label': 'Menu',
   'menu.guest': 'Guest',
+  'menu.signedIn': 'Signed in',
+  'menu.browsing': 'Browsing as guest',
+  'menu.unverified': 'Unverified',
   'menu.statusVerified': 'Verified — full access',
   'menu.statusGuest': 'Viewing only. Sign in to report, post and vote.',
   'menu.statusUnverified': 'Verify your email to unlock reporting.',
@@ -297,6 +300,7 @@ export default {
   'walkthrough.next': 'Next',
   'walkthrough.done': 'Explore Map',
 
+  'walkthrough.overview.kicker': 'Nouakchott Energy Map · N.E.M.',
   'walkthrough.overview.lead':
     'Decentralizing infrastructure awareness across Nouakchott.',
   'walkthrough.overview.body':
@@ -374,4 +378,9 @@ export default {
   'community.desc.neighbourhood': 'Neighbourhood chat · {name} · 3d history',
   'community.desc.region': 'Regional updates · {name} · 3d history',
   'community.desc.global': 'City-wide Nouakchott updates · 3d history',
+  'theme.light': 'Switch to light theme',
+  'theme.dark': 'Switch to dark theme',
+  'unit.hoursShort': '{count}h',
+  'unit.m': '{count}m',
+  'unit.km': '{count}km',
 }

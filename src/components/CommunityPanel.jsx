@@ -5,10 +5,11 @@ import {
   COMMUNITY_RADIUS_KM,
   NEIGHBOURHOODS,
   NOUAKCHOTT_CENTER,
+  getLocalName,
 } from '../constants'
 import { useAuth } from '../context/useAuth'
 import { useNearbyMessages } from '../hooks/useNearbyMessages'
-import { useT } from '../i18n/useI18n'
+import { useI18n } from '../i18n/useI18n'
 import { MAX_MESSAGE_LENGTH, sendMessage } from '../services/messages'
 import {
   findRegionForPoint,
@@ -25,16 +26,16 @@ const CHAT_SCOPES = [
 
 const RADIUS_OPTIONS = [1, 2, 5]
 
-function formatDistance(metres) {
+function formatDistance(metres, t) {
   if (metres == null) return ''
   return metres < 1000
-    ? `${Math.round(metres)}m`
-    : `${(metres / 1000).toFixed(1)}km`
+    ? t('unit.m', { count: Math.round(metres) })
+    : t('unit.km', { count: (metres / 1000).toFixed(1) })
 }
 
 function CommunityPanel({ onClose, position, onRequestSignIn }) {
   const { uid, canWrite, isAnonymous } = useAuth()
-  const t = useT()
+  const { t, lang } = useI18n()
 
   const [scope, setScope] = useState('neighbourhood')
   const [radiusKm, setRadiusKm] = useState(COMMUNITY_RADIUS_KM)
@@ -95,9 +96,11 @@ function CommunityPanel({ onClose, position, onRequestSignIn }) {
     endRef.current?.scrollIntoView({ block: 'end' })
   }, [messages.length, scope])
 
+  const locale = lang === 'ar' ? 'ar-MR' : lang === 'fr' ? 'fr-FR' : 'en-US'
+
   const formatTime = (createdAt) =>
     createdAt?.toDate
-      ? createdAt.toDate().toLocaleString([], {
+      ? createdAt.toDate().toLocaleString(locale, {
           month: 'short',
           day: 'numeric',
           hour: '2-digit',
@@ -133,9 +136,13 @@ function CommunityPanel({ onClose, position, onRequestSignIn }) {
     scope === 'radius'
       ? t('community.desc.radius', { km: radiusKm })
       : scope === 'neighbourhood'
-        ? t('community.desc.neighbourhood', { name: activeSub.name })
+        ? t('community.desc.neighbourhood', {
+            name: getLocalName(activeSub, lang),
+          })
         : scope === 'region'
-          ? t('community.desc.region', { name: activeRegion.name })
+          ? t('community.desc.region', {
+              name: getLocalName(activeRegion, lang),
+            })
           : t('community.desc.global')
 
   const composer = !canWrite ? (
@@ -233,7 +240,7 @@ function CommunityPanel({ onClose, position, onRequestSignIn }) {
                       : 'text-zinc-600 dark:text-zinc-400'
                   }`}
                 >
-                  {km}km
+                  {t('unit.km', { count: km })}
                 </button>
               ))}
             </div>
@@ -256,7 +263,9 @@ function CommunityPanel({ onClose, position, onRequestSignIn }) {
                   value={sub.id}
                   className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100"
                 >
-                  {sub.regionName} · {sub.name}
+                  {lang === 'ar'
+                    ? `${sub.regionNameAr ?? sub.regionName} · ${sub.nameAr ?? sub.name}`
+                    : `${sub.regionName} · ${sub.name}`}
                 </option>
               ))}
             </select>
@@ -279,7 +288,7 @@ function CommunityPanel({ onClose, position, onRequestSignIn }) {
                   value={reg.id}
                   className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100"
                 >
-                  {reg.name}
+                  {getLocalName(reg, lang)}
                 </option>
               ))}
             </select>
@@ -319,12 +328,22 @@ function CommunityPanel({ onClose, position, onRequestSignIn }) {
                   <span>
                     ·{' '}
                     {t('community.away', {
-                      distance: formatDistance(message.distance),
+                      distance: formatDistance(message.distance, t),
                     })}
                   </span>
                 )}
-                {scope === 'global' && message.regionName && (
-                  <span>· {message.regionName}</span>
+                {scope === 'global' && (message.regionId || message.regionName) && (
+                  <span>
+                    ·{' '}
+                    {getLocalName(
+                      NEIGHBOURHOODS.find(
+                        (r) =>
+                          r.id === message.regionId ||
+                          r.name === message.regionName,
+                      ),
+                      lang,
+                    ) || message.regionName}
+                  </span>
                 )}
               </p>
             </div>

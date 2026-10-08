@@ -7,7 +7,7 @@ import {
   Wrench,
   Zap,
 } from 'lucide-react'
-import { Fragment, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Polygon, Popup } from 'react-leaflet'
 import {
   Area,
@@ -18,7 +18,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { useT } from '../i18n/useI18n'
+import { getLocalName } from '../constants'
+import { useI18n } from '../i18n/useI18n'
 import { STATUS_NO_GAS } from '../services/stations'
 
 const STATUS_STYLE = {
@@ -36,9 +37,10 @@ const STATUS_STYLE = {
   },
 }
 
-function formatShortTime(ms, fallback) {
+function formatShortTime(ms, lang, fallback) {
   if (!ms) return fallback
-  return new Date(ms).toLocaleString([], {
+  const locale = lang === 'ar' ? 'ar-MR' : lang === 'fr' ? 'fr-FR' : 'en-US'
+  return new Date(ms).toLocaleString(locale, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -46,8 +48,23 @@ function formatShortTime(ms, fallback) {
   })
 }
 
-function SevenDayTrendChart({ data, t }) {
-  if (!data?.length) return null
+function SevenDayTrendChart({ data, lang, t }) {
+  const localizedData = useMemo(() => {
+    if (!data?.length) return []
+    const locale = lang === 'ar' ? 'ar-MR' : lang === 'fr' ? 'fr-FR' : 'en-US'
+    return data.map((entry) => {
+      const parsed = Date.parse(`${entry.dateKey}T12:00:00`)
+      const dayLabel = Number.isNaN(parsed)
+        ? entry.dayLabel
+        : new Date(parsed).toLocaleDateString(locale, { weekday: 'short' })
+      return {
+        ...entry,
+        dayLabel,
+      }
+    })
+  }, [data, lang])
+
+  if (!localizedData.length) return null
 
   return (
     <div className="rounded-xl bg-black/5 p-2 dark:bg-white/5">
@@ -75,7 +92,7 @@ function SevenDayTrendChart({ data, t }) {
       <div className="h-24 w-full" dir="ltr">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
-            data={data}
+            data={localizedData}
             margin={{ top: 4, right: 2, left: -24, bottom: 0 }}
           >
             <defs>
@@ -143,7 +160,7 @@ function SevenDayTrendChart({ data, t }) {
 }
 
 function RegionPopupContent({ region, initialSubId = null }) {
-  const t = useT()
+  const { t, lang, dir } = useI18n()
   const [selectedSubId, setSelectedSubId] = useState(initialSubId)
 
   const selectedSub =
@@ -151,9 +168,13 @@ function RegionPopupContent({ region, initialSubId = null }) {
   const activeTarget = selectedSub ?? region
   const palette =
     STATUS_STYLE[activeTarget.overallStatus] ?? STATUS_STYLE.normal
+  const backArrow = dir === 'rtl' ? '→' : '←'
 
   return (
-    <div className="max-h-[min(64dvh,22rem)] w-64 max-w-[78vw] space-y-2 overflow-y-auto overscroll-contain pe-0.5 text-zinc-900 dark:text-zinc-100">
+    <div
+      dir={dir}
+      className="max-h-[min(64dvh,22rem)] w-64 max-w-[78vw] space-y-2 overflow-y-auto overscroll-contain pe-0.5 text-start text-zinc-900 dark:text-zinc-100"
+    >
       {/* Header: Region or Neighbourhood name + Power Grid status badge */}
       <div className="flex items-start justify-between gap-2 border-b border-black/10 pb-1.5 dark:border-white/10">
         <div className="min-w-0">
@@ -162,17 +183,17 @@ function RegionPopupContent({ region, initialSubId = null }) {
               <button
                 type="button"
                 onClick={() => setSelectedSubId(null)}
-                className="font-mono text-[9px] font-semibold tracking-wider text-sky-600 uppercase hover:underline dark:text-sky-400"
+                className="font-mono text-[10px] font-semibold text-sky-600 uppercase hover:underline dark:text-sky-400"
               >
-                ← {region.name}
+                {backArrow} {getLocalName(region, lang)}
               </button>
               <span className="block truncate font-mono text-xs font-bold">
-                {selectedSub.name}
+                {getLocalName(selectedSub, lang)}
               </span>
             </>
           ) : (
-            <span className="block truncate font-mono text-xs font-bold tracking-wider uppercase">
-              {region.name}
+            <span className="block truncate font-mono text-xs font-bold uppercase">
+              {getLocalName(region, lang)}
             </span>
           )}
         </div>
@@ -232,7 +253,7 @@ function RegionPopupContent({ region, initialSubId = null }) {
       </div>
 
       {/* 7-Day Historical Trend of Uptime & Outage Frequency (Recharts) */}
-      <SevenDayTrendChart data={activeTarget.dailyTrend} t={t} />
+      <SevenDayTrendChart data={activeTarget.dailyTrend} lang={lang} t={t} />
 
       {/* Last Power Outage & Recent Maintenance */}
       <div className="space-y-1 rounded-xl bg-black/5 px-2.5 py-1.5 text-[10px] dark:bg-white/5">
@@ -246,9 +267,13 @@ function RegionPopupContent({ region, initialSubId = null }) {
             <span className="font-semibold">{t('region.lastOutage')}: </span>
             {activeTarget.lastOutageInfo ? (
               <span className="tabular">
-                {formatShortTime(activeTarget.lastOutageInfo.timestampMs, '')}
+                {formatShortTime(
+                  activeTarget.lastOutageInfo.timestampMs,
+                  lang,
+                  '',
+                )}
                 {activeTarget.lastOutageInfo.durationHours
-                  ? ` (${activeTarget.lastOutageInfo.durationHours}h)`
+                  ? ` (${t('unit.hoursShort', { count: activeTarget.lastOutageInfo.durationHours })})`
                   : ''}
               </span>
             ) : (
@@ -301,7 +326,7 @@ function RegionPopupContent({ region, initialSubId = null }) {
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium leading-tight">
-                    {station.name}
+                    {getLocalName(station, lang)}
                   </p>
                   <div className="mt-0.5 flex items-center gap-1.5 text-[9px]">
                     {station.rating && (
@@ -352,7 +377,6 @@ function RegionZonesLayer({ visible, regions }) {
 
     return (
       <Fragment key={region.id}>
-        {/* Sub-neighbourhoods inside the region */}
         {region.subNeighbourhoods.map((sub) => {
           const subPalette =
             STATUS_STYLE[sub.overallStatus] ?? STATUS_STYLE.normal
@@ -390,7 +414,6 @@ function RegionZonesLayer({ visible, regions }) {
           )
         })}
 
-        {/* Outer Region boundary line */}
         <Polygon
           positions={region.polygon}
           interactive={false}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { OFFICIAL_COLOR } from '../constants'
-import { useT } from '../i18n/useI18n'
+import { NEIGHBOURHOODS, OFFICIAL_COLOR, getLocalName } from '../constants'
+import { useI18n } from '../i18n/useI18n'
 import { CloseIcon, MegaphoneIcon, NavigationIcon } from './icons'
 
 /**
@@ -9,13 +9,18 @@ import { CloseIcon, MegaphoneIcon, NavigationIcon } from './icons'
  * per-notice and per-session, so it cannot be silenced permanently by accident.
  */
 function AnnouncementBanner({ announcements, onFocus }) {
-  const t = useT()
+  const { t, lang } = useI18n()
+  const locale = lang === 'ar' ? 'ar-MR' : lang === 'fr' ? 'fr-FR' : 'en-US'
   const [dismissed, setDismissed] = useState(() => new Set())
 
   const visible = announcements.filter((item) => !dismissed.has(item.id))
   if (visible.length === 0) return null
 
   const item = visible[0]
+  const matchedRegion = NEIGHBOURHOODS.find(
+    (r) => r.id === item.areaId || r.name === item.area,
+  )
+  const localArea = matchedRegion ? getLocalName(matchedRegion, lang) : item.area
 
   return (
     <div
@@ -41,13 +46,13 @@ function AnnouncementBanner({ announcements, onFocus }) {
             {t('banner.official')}
           </p>
           <p className="mt-0.5 text-sm font-semibold">
-            {t('banner.from', { org: item.org, area: item.area })}
+            {t('banner.from', { org: item.org, area: localArea })}
           </p>
           <p className="mt-0.5 text-sm">{item.text}</p>
           {item.expiresAt?.toDate && (
             <p className="tabular mt-1 text-xs text-zinc-600 dark:text-zinc-400">
               {t('banner.until', {
-                time: item.expiresAt.toDate().toLocaleTimeString([], {
+                time: item.expiresAt.toDate().toLocaleTimeString(locale, {
                   hour: '2-digit',
                   minute: '2-digit',
                 }),

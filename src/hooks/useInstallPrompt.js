@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react'
 
 function isStandalone() {
+  if (typeof window === 'undefined') return false
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
-    // Safari's non-standard flag for home-screen apps.
     window.navigator.standalone === true
   )
 }
 
 function isIos() {
+  if (typeof window === 'undefined') return false
   const ua = window.navigator.userAgent
-  // iPadOS 13+ reports itself as a Mac, so also check for touch support.
   return (
     /iphone|ipad|ipod/i.test(ua) ||
     (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1)
@@ -23,7 +23,6 @@ export function useInstallPrompt() {
 
   useEffect(() => {
     const onBeforeInstallPrompt = (event) => {
-      // Chrome only shows its own mini-infobar if we don't preventDefault.
       event.preventDefault()
       setPromptEvent(event)
     }
@@ -44,7 +43,6 @@ export function useInstallPrompt() {
     if (!promptEvent) return null
     promptEvent.prompt()
     const { outcome } = await promptEvent.userChoice
-    // The event can only be used once.
     setPromptEvent(null)
     return outcome
   }
@@ -55,9 +53,9 @@ export function useInstallPrompt() {
     install,
     installed,
     ios,
-    // Android/desktop Chrome gives us an event; iOS never does, so we fall back
-    // to showing manual instructions.
     canPrompt: Boolean(promptEvent),
-    available: !installed && (Boolean(promptEvent) || ios),
+    // Always show the Install option in the dropdown menu until the app is
+    // running in standalone Home Screen mode.
+    available: !installed,
   }
 }

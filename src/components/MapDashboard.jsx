@@ -33,6 +33,7 @@ import CommunityPanel from './CommunityPanel'
 import ConnectionIndicator from './ConnectionIndicator'
 import GasStationLayer from './GasStationLayer'
 import InfoPanel from './InfoPanel'
+import { InstallGuideModal } from './InstallButton'
 import MapControls from './MapControls'
 import MapTiles from './MapTiles'
 import OfficialPanel from './OfficialPanel'
@@ -253,7 +254,7 @@ function MapDashboard() {
   }, [locate, map, position])
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden">
+    <div className="fixed inset-0 h-full w-full overflow-hidden">
       <div className="absolute inset-0 z-0">
         <MapContainer
           center={NOUAKCHOTT_CENTER}
@@ -290,7 +291,7 @@ function MapDashboard() {
         </MapContainer>
       </div>
 
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-30 space-y-2 p-4">
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-30 space-y-2 px-[max(1rem,env(safe-area-inset-left,0px))] pt-[max(0.85rem,calc(env(safe-area-inset-top,0px)+0.5rem))] pb-2">
         <div className="glass-pill relative z-30 pointer-events-auto flex items-center gap-3 py-2 ps-5 pe-2">
           <div className="min-w-0 flex-1">
             <h1 className="truncate font-mono text-sm font-semibold tracking-[0.22em] uppercase">
@@ -312,6 +313,7 @@ function MapDashboard() {
             onOpenAbout={() => setPanel('about')}
             onOpenOfficial={() => setPanel('official')}
             onOpenAdmin={() => setPanel('admin')}
+            onOpenInstallGuide={() => setPanel('install')}
             isAdmin={isAdmin}
             showStations={showStations}
             onToggleStations={() => setShowStations((prev) => !prev)}
@@ -375,6 +377,9 @@ function MapDashboard() {
         disabled={busy || status !== 'authenticated'}
       />
 
+      {panel === 'install' && (
+        <InstallGuideModal onClose={() => setPanel(null)} />
+      )}
       {panel === 'walkthrough' && (
         <WalkthroughModal
           onClose={() => setPanel(null)}

@@ -275,6 +275,7 @@ export default {
   'profile.viewOnMap': 'الخريطة',
   'menu.yourProfile': 'ملفك الشخصي',
   'menu.yourProfileHint': 'بلاغاتك وحالة كل بلاغ',
+  'menu.signOut': 'تسجيل الخروج',
 
   'walkthrough.badge': 'دليل تفاعلي',
   'walkthrough.title': 'الرؤية والهدف وطريقة الاستخدام',

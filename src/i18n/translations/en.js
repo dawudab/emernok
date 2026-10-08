@@ -285,6 +285,7 @@ export default {
   'profile.viewOnMap': 'Map',
   'menu.yourProfile': 'Your Profile',
   'menu.yourProfileHint': 'Reported outages & status',
+  'menu.signOut': 'Sign Out',
 
   'walkthrough.badge': 'Interactive Guide',
   'walkthrough.title': 'Vision, Purpose & How to Use',

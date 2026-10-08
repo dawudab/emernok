@@ -291,7 +291,7 @@ function ReportActionBar({
       )}
 
       {/* Compact icon-only power outage button in the bottom-right corner */}
-      <div className="pointer-events-none absolute end-4 bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-20">
+      <div className="pointer-events-none absolute end-[max(1rem,env(safe-area-inset-right,0px))] bottom-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] z-20">
         <button
           type="button"
           onClick={handleOpenFab}

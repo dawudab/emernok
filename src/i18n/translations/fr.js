@@ -296,6 +296,7 @@ export default {
   'profile.viewOnMap': 'Carte',
   'menu.yourProfile': 'Votre profil',
   'menu.yourProfileHint': 'Vos coupures signalées et leur statut',
+  'menu.signOut': 'Se déconnecter',
 
   'walkthrough.badge': 'Guide interactif',
   'walkthrough.title': 'Vision, Objectif et Mode d’emploi',

@@ -91,6 +91,7 @@ function AppMenu({
   onOpenAbout,
   onOpenOfficial,
   onOpenAdmin,
+  onOpenInstallGuide,
   isAdmin,
   showStations,
   onToggleStations,
@@ -310,7 +311,11 @@ function AppMenu({
                 onClick={choose(onOpenAbout)}
               />
 
-              <InstallButton variant="menu" onDone={close} />
+              <InstallButton
+                variant="menu"
+                onDone={close}
+                onOpenInstallGuide={onOpenInstallGuide}
+              />
 
               {!isAnonymous && (
                 <>

@@ -17,7 +17,7 @@ import {
   MESSAGE_TTL_HOURS,
   NOUAKCHOTT_CENTER,
 } from '../constants'
-import { OperationType, db, handleFirestoreError } from '../firebaseConfig'
+import { OperationType, auth, db, handleFirestoreError } from '../firebaseConfig'
 import {
   findRegionForPoint,
   findSubNeighbourhoodForPoint,
@@ -132,12 +132,19 @@ export async function sendMessage({
   }
 }
 
+const attemptedPurgeMessageIds = new Set()
+
 export async function purgeExpiredMessages(expiredMessages) {
-  if (!db || !expiredMessages?.length) return
+  if (!db || !auth?.currentUser || !expiredMessages?.length) return
+  const pending = expiredMessages.filter(
+    (msg) => msg?.id && !attemptedPurgeMessageIds.has(msg.id),
+  )
+  if (pending.length === 0) return
+  for (const msg of pending) {
+    attemptedPurgeMessageIds.add(msg.id)
+  }
   await Promise.allSettled(
-    expiredMessages.map((msg) =>
-      deleteDoc(doc(db, MESSAGES_COLLECTION, msg.id)),
-    ),
+    pending.map((msg) => deleteDoc(doc(db, MESSAGES_COLLECTION, msg.id))),
   )
 }
 

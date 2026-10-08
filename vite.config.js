@@ -9,6 +9,7 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 3000,
     allowedHosts: true,
+    hmr: false,
   },
   plugins: [
     react(),
@@ -18,11 +19,12 @@ export default defineConfig({
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         id: '/',
-        name: 'N.E.M. — Nouakchott Energy Map',
+        name: 'N.E.M. — خريطة الطاقة في نواكشوط',
         short_name: 'N.E.M.',
         description:
-          'Live community reports of power outages and top fuel station availability in Nouakchott.',
-        lang: 'en',
+          'بلاغات مجتمعية مباشرة لانقطاعات الكهرباء وتوفر الوقود في محطات نواكشوط.',
+        lang: 'ar',
+        dir: 'rtl',
         theme_color: '#09090b',
         background_color: '#09090b',
         display: 'standalone',

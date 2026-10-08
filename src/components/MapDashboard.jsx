@@ -107,11 +107,15 @@ function MapDashboard() {
   )
 
   useEffect(() => {
-    if (status !== 'authenticated' || expiredUnverifiedReports.length === 0) {
+    if (
+      !uid ||
+      status !== 'authenticated' ||
+      expiredUnverifiedReports.length === 0
+    ) {
       return
     }
     purgeExpiredUnverifiedReports(expiredUnverifiedReports)
-  }, [expiredUnverifiedReports, status])
+  }, [expiredUnverifiedReports, status, uid])
 
   const filteredClusters = useMemo(() => {
     if (verificationFilter === 'verified') {

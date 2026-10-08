@@ -13,7 +13,7 @@ import {
   serverTimestamp,
   where,
 } from 'firebase/firestore'
-import { OperationType, db, handleFirestoreError } from '../firebaseConfig'
+import { OperationType, auth, db, handleFirestoreError } from '../firebaseConfig'
 import {
   DAILY_REPORT_LIMIT,
   MAX_REPORT_DETAILS_LENGTH,
@@ -231,12 +231,19 @@ export async function deleteReport(reportId) {
   }
 }
 
+const attemptedPurgeReportIds = new Set()
+
 export async function purgeExpiredUnverifiedReports(expiredReports) {
-  if (!db || !expiredReports?.length) return
+  if (!db || !auth?.currentUser || !expiredReports?.length) return
+  const pending = expiredReports.filter(
+    (report) => report?.id && !attemptedPurgeReportIds.has(report.id),
+  )
+  if (pending.length === 0) return
+  for (const report of pending) {
+    attemptedPurgeReportIds.add(report.id)
+  }
   await Promise.allSettled(
-    expiredReports.map((report) =>
-      deleteDoc(doc(db, REPORTS_COLLECTION, report.id)),
-    ),
+    pending.map((report) => deleteDoc(doc(db, REPORTS_COLLECTION, report.id))),
   )
 }
 

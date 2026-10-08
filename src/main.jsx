@@ -9,7 +9,11 @@ import ThemeProvider from './theme/ThemeProvider.jsx'
 
 // Register the Workbox service worker immediately so the app shell, map tiles,
 // and cached outage reports remain available on poor or offline connections.
-registerSW({ immediate: true })
+// Provide onNeedReload no-op to prevent automatic window.location.reload() loops on mobile.
+registerSW({
+  immediate: true,
+  onNeedReload() {},
+})
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

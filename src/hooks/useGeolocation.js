@@ -68,17 +68,30 @@ export function useGeolocation() {
 
     const watchId = navigator.geolocation.watchPosition(
       ({ coords }) => {
-        setState((previous) => ({
-          ...previous,
-          position: { lat: coords.latitude, lng: coords.longitude },
-          hasHardwareFix: true,
-          status: 'ready',
-        }))
+        setState((previous) => {
+          const nextLat = coords.latitude
+          const nextLng = coords.longitude
+          if (
+            previous.hasHardwareFix &&
+            previous.position &&
+            Math.abs(previous.position.lat - nextLat) < 0.00015 &&
+            Math.abs(previous.position.lng - nextLng) < 0.00015 &&
+            previous.status === 'ready'
+          ) {
+            return previous
+          }
+          return {
+            ...previous,
+            position: { lat: nextLat, lng: nextLng },
+            hasHardwareFix: true,
+            status: 'ready',
+          }
+        })
       },
       () => {
         // Keep last known or default Nouakchott position on watch errors.
       },
-      { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 },
+      { enableHighAccuracy: false, maximumAge: 60000, timeout: 15000 },
     )
 
     return () => navigator.geolocation.clearWatch(watchId)

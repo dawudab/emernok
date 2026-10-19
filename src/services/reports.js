@@ -92,6 +92,45 @@ function toMillis(value) {
   return value?.toMillis?.() ?? 0
 }
 
+export function getReportLastUpdatedMs(report) {
+  if (!report) return 0
+  return (
+    toMillis(report.restoredAt) ||
+    toMillis(report.updatedAt) ||
+    toMillis(report.createdAt) ||
+    0
+  )
+}
+
+export function formatRelativeTime(timestamp, lang = 'en') {
+  const ms = typeof timestamp === 'number' ? timestamp : toMillis(timestamp)
+  if (!ms) {
+    if (lang === 'ar') return 'الآن'
+    if (lang === 'fr') return 'à l’instant'
+    return 'just now'
+  }
+  const diffSec = Math.max(0, Math.floor((Date.now() - ms) / 1000))
+  if (diffSec < 60) {
+    if (lang === 'ar') return 'الآن'
+    if (lang === 'fr') return 'à l’instant'
+    return 'just now'
+  }
+  const mins = Math.floor(diffSec / 60)
+  if (mins < 60) {
+    if (lang === 'ar') return `${mins} د`
+    return `${mins}m`
+  }
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) {
+    if (lang === 'ar') return `${hours} س`
+    return `${hours}h`
+  }
+  const days = Math.floor(hours / 24)
+  if (lang === 'ar') return `${days} ي`
+  if (lang === 'fr') return `${days}j`
+  return `${days}d`
+}
+
 export function isWithinHours(report, hours = REPORT_TTL_HOURS) {
   const createdMs = toMillis(report.createdAt)
   if (!createdMs) return true
@@ -104,6 +143,14 @@ export function isResolved(report) {
   if (report.reportMode === 'past') return true
   const restored = report.restoredCount ?? 0
   return restored >= RESTORED_THRESHOLD && restored > (report.stillOutCount ?? 0)
+}
+
+export function isWorkingOrResolved(report) {
+  if (!report) return false
+  if (report.powerStatus === 'working' || report.powerStatus === 'restored') {
+    return true
+  }
+  return isResolved(report)
 }
 
 /**
@@ -179,6 +226,8 @@ export async function createReport({
   reportMode = 'current',
   outageStartedAt = '',
   cause = 'unplanned',
+  durationHours = 0,
+  durationMinutes = 0,
 }) {
   if (!db) throw new Error('Firebase is not configured')
   if (!uid) throw new Error('Not signed in yet')
@@ -237,6 +286,7 @@ export async function createReport({
         dayStartedAt,
       })
 
+      const isPast = validMode === 'past'
       const payload = {
         uid,
         type,
@@ -248,12 +298,25 @@ export async function createReport({
         restoredCount: 0,
         reportMode: validMode,
         cause: validCause,
-        powerStatus: 'out',
+        powerStatus: isPast ? 'restored' : 'out',
       }
       if (trimmedStart) {
         payload.outageStartedAt = trimmedStart
       } else {
         payload.outageStartedAt = new Date().toISOString()
+      }
+      if (isPast) {
+        const safeHours = Math.max(0, Math.min(168, Number(durationHours) || 0))
+        const safeMinutes = Math.max(
+          0,
+          Math.min(20160, Number(durationMinutes) || Math.round(safeHours * 60)),
+        )
+        if (safeHours > 0) {
+          payload.durationHours = safeHours
+        }
+        if (safeMinutes > 0) {
+          payload.durationMinutes = safeMinutes
+        }
       }
       if (trimmedDetails) {
         payload.details = trimmedDetails

@@ -449,4 +449,30 @@ export default {
   'survey.cooldownNotice': 'You recently completed a survey. You can take the next survey in {time}.',
   'survey.cooldownSubtitle': 'Each person is limited to 2 surveys per 24 hours with a time delay between them.',
   'survey.gotIt': 'Got it',
+
+  'notice.emailLinkPrompt': 'Finish Email Sign-In',
+  'signIn.emailLinkHelp': 'Enter your email to receive a passwordless sign-in link.',
+  'signIn.checkEmail': 'We sent a sign-in link to {email}. Open it on this device or paste the link below.',
+  'signIn.sending': 'Sending…',
+  'signIn.pasteLink': 'Have the sign-in link? Paste it here',
+  'signIn.completePasted': 'Verify & Sign In',
+  'signIn.consoleHelpTitle': 'Firebase Email Link Setup',
+  'signIn.consoleHelp': 'Enable Email Link (passwordless sign-in) under Authentication → Sign-in method → Email/Password in Firebase Console, or sign in with Google or Phone below.',
+
+  'connection.offline': 'Offline (cached)',
+  'connection.slow': 'Slow network',
+
+  'location.friendlyBody': 'We only use your location to show outages in your neighbourhood — no sign-up or personal data required.',
+  'location.selectPrompt': 'Choose your neighbourhood:',
+  'location.tapMapHint': 'Tap on Map',
+  'location.pickNeighborhood': 'Pick Neighbourhood',
+
+  'report.pastNotice': 'Log a previous outage that has already been resolved.',
+  'report.dateLabel': 'Outage Date',
+  'report.timeLabel': 'Start Time',
+  'report.durationLabel': 'Outage Duration',
+  'report.today': 'Today',
+  'report.yesterday': 'Yesterday',
+  'report.hours': 'Hours',
+  'report.minutes': 'Minutes',
 }

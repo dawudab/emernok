@@ -488,8 +488,8 @@ service cloud.firestore {
         && isValidId(stationId)
         && isValidStationStatus(incoming(), stationId)
         && (
-          (incoming().status == 'has_gas' && incoming().hasGasCount == 1 && incoming().noGasCount == 0)
-          || (incoming().status == 'no_gas' && incoming().noGasCount == 1 && incoming().hasGasCount == 0)
+          (incoming().hasGasCount == 1 && incoming().noGasCount == 0 && incoming().status == 'has_gas')
+          || (incoming().noGasCount == 1 && incoming().hasGasCount == 0 && incoming().status in ['has_gas', 'no_gas'])
         );
 
       allow update: if verifiedUser()
@@ -498,11 +498,9 @@ service cloud.firestore {
         && incoming().stationId == existing().stationId
         && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'hasGasCount', 'noGasCount', 'updatedBy', 'updatedAt'])
         && (
-          (incoming().status == 'has_gas'
-            && incoming().hasGasCount == existing().hasGasCount + 1
+          (incoming().hasGasCount == existing().hasGasCount + 1
             && incoming().noGasCount == existing().noGasCount)
-          || (incoming().status == 'no_gas'
-            && incoming().noGasCount == existing().noGasCount + 1
+          || (incoming().noGasCount == existing().noGasCount + 1
             && incoming().hasGasCount == existing().hasGasCount)
         );
 

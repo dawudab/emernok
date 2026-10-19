@@ -6,6 +6,7 @@ import {
   createUserWithEmailAndPassword,
   isSignInWithEmailLink,
   linkWithCredential,
+  linkWithPhoneNumber,
   linkWithPopup,
   reload,
   sendPasswordResetEmail,
@@ -22,9 +23,30 @@ import { auth } from '../firebaseConfig'
 // browser), so the address has to outlive the page that requested it.
 const PENDING_EMAIL_KEY = 'emernok:pending-email'
 
-export function createRecaptcha(container, size = 'invisible') {
-  if (!container) return null
-  return new RecaptchaVerifier(auth, container, {
+export function createRecaptcha(container = 'recaptcha-container', size = 'invisible') {
+  if (typeof window === 'undefined') return null
+
+  // Clean up any existing window.recaptchaVerifier before initializing a new instance
+  if (window.recaptchaVerifier) {
+    try {
+      window.recaptchaVerifier.clear()
+    } catch {
+      // Ignore cleanup errors from stale verifier instances
+    }
+    window.recaptchaVerifier = null
+  }
+
+  const targetEl =
+    typeof container === 'string'
+      ? document.getElementById(container)
+      : container
+
+  if (!targetEl) return null
+
+  // Ensure the container DOM node has no leftover reCAPTCHA widget markup
+  targetEl.innerHTML = ''
+
+  const verifier = new RecaptchaVerifier(auth, targetEl, {
     size,
     callback: () => {
       // reCAPTCHA solved - will proceed with phone auth
@@ -33,6 +55,33 @@ export function createRecaptcha(container, size = 'invisible') {
       // Response expired. Ask user to solve reCAPTCHA again.
     },
   })
+
+  window.recaptchaVerifier = verifier
+  return verifier
+}
+
+/**
+ * Formats a raw phone input into E.164 format (+countryCode...),
+ * handling Mauritanian (+222) 8-digit numbers and numbers missing '+'.
+ */
+export function formatPhoneNumberE164(phoneNumber) {
+  const cleaned = String(phoneNumber || '')
+    .trim()
+    .replace(/[\s()-]/g, '')
+
+  if (!cleaned) return ''
+
+  if (cleaned.startsWith('+')) {
+    return cleaned
+  }
+  if (cleaned.startsWith('00')) {
+    return `+${cleaned.slice(2)}`
+  }
+  // Standard 8-digit Mauritanian mobile number (starts with 2, 3, or 4)
+  if (/^[234]\d{7}$/.test(cleaned)) {
+    return `+222${cleaned}`
+  }
+  return `+${cleaned}`
 }
 
 /**
@@ -84,10 +133,34 @@ export async function signInWithGoogle() {
 // ---- phone / sms -----------------------------------------------------------
 
 export async function startPhoneSignIn(phoneNumber, verifier) {
-  // Always call signInWithPhoneNumber directly with the freshly initialized verifier.
-  // Pre-attempting linkWithPhoneNumber burns the single-use reCAPTCHA token and causes
-  // auth/error-code:-39 when falling back to signInWithPhoneNumber.
-  return signInWithPhoneNumber(auth, phoneNumber, verifier)
+  const formattedNumber = formatPhoneNumberE164(phoneNumber)
+  const activeVerifier =
+    verifier ||
+    window.recaptchaVerifier ||
+    createRecaptcha('recaptcha-container', 'invisible')
+
+  const current = auth.currentUser
+  if (current?.isAnonymous) {
+    try {
+      return await linkWithPhoneNumber(current, formattedNumber, activeVerifier)
+    } catch (error) {
+      if (
+        error?.code === 'auth/credential-already-in-use' ||
+        error?.code === 'auth/account-exists-with-different-credential'
+      ) {
+        const fallbackVerifier =
+          createRecaptcha('recaptcha-container', 'invisible') || activeVerifier
+        return await signInWithPhoneNumber(
+          auth,
+          formattedNumber,
+          fallbackVerifier,
+        )
+      }
+      throw error
+    }
+  }
+
+  return signInWithPhoneNumber(auth, formattedNumber, activeVerifier)
 }
 
 export async function confirmPhoneCode(confirmationResult, code) {
@@ -109,12 +182,12 @@ export async function confirmPhoneCode(confirmationResult, code) {
 
 export async function sendMagicLink(email) {
   const address = email.trim()
-  await sendSignInLinkToEmail(auth, address, {
-    // Must be an authorised domain in Firebase Auth settings. Dropping the
-    // query string keeps the returned link free of our own parameters.
-    url: `${window.location.origin}${window.location.pathname}`,
+  const actionCodeSettings = {
+    // Strictly use window.location.origin so it matches the root authorized domain in Firebase
+    url: window.location.origin,
     handleCodeInApp: true,
-  })
+  }
+  await sendSignInLinkToEmail(auth, address, actionCodeSettings)
   window.localStorage.setItem(PENDING_EMAIL_KEY, address)
 }
 
@@ -142,7 +215,9 @@ export async function completeEmailLink(email, url = window.location.href) {
     // The one-time code in the link is spent once an attempt consumes it, so a
     // retry cannot reuse it. Nothing to do but ask for a fresh link.
     if (error.code === 'auth/invalid-action-code') {
-      throw new Error('That sign-in link has expired or has already been used. Please request a new one.')
+      throw new Error(
+        'That sign-in link has expired or has already been used. Please request a new one.',
+      )
     }
     throw error
   } finally {
@@ -221,6 +296,34 @@ export function formatAuthError(error, lang = 'en') {
   }
 
   switch (code) {
+    case 'auth/invalid-phone-number':
+      if (lang === 'ar') {
+        return 'رقم الهاتف غير صالح. يرجى التأكد من كتابة الرقم بالصيغة الدولية الصحيحة (مثال: +22236123456 لموريتانيا).'
+      }
+      if (lang === 'fr') {
+        return 'Numéro de téléphone invalide. Veuillez vérifier le format international (ex : +22236123456 pour la Mauritanie).'
+      }
+      return 'Invalid phone number. Please enter a valid number with country code (e.g. +22236123456 for Mauritania).'
+
+    case 'auth/quota-exceeded':
+      if (lang === 'ar') {
+        return 'تم تجاوز الحد اليومي لرسائل SMS. يرجى المحاولة لاحقًا أو تسجيل الدخول عبر Google أو البريد الإلكتروني.'
+      }
+      if (lang === 'fr') {
+        return 'Quota de SMS dépassé temporairement. Veuillez réessayer plus tard ou vous connecter avec Google ou par e-mail.'
+      }
+      return 'SMS quota exceeded temporarily. Please try again later or sign in with Google or Email.'
+
+    case 'auth/captcha-check-failed':
+    case 'auth/invalid-app-credential':
+      if (lang === 'ar') {
+        return 'فشل التحقق الأمني (reCAPTCHA). يرجى المحاولة مرة أخرى أو استخدام تسجيل الدخول عبر Google أو البريد الإلكتروني.'
+      }
+      if (lang === 'fr') {
+        return 'La vérification reCAPTCHA a échoué. Veuillez réessayer ou utiliser Google / e-mail.'
+      }
+      return 'reCAPTCHA verification failed. Please try again or sign in with Google or Email.'
+
     case 'auth/operation-not-allowed':
       if (lang === 'ar') {
         return 'طريقة تسجيل الدخول برابط البريد غير مفعلة في لوحة تحكم Firebase. لتفعيلها: ادخل إلى Authentication > Sign-in method > Email/Password وفعّل خيار (Email link). يمكنك أيضًا تسجيل الدخول بـ Google أو الهاتف.'
@@ -238,25 +341,6 @@ export function formatAuthError(error, lang = 'en') {
         return 'Ce domaine n’est pas dans la liste des domaines autorisés Firebase. Ajoutez-le dans la console Firebase ou utilisez Google ou Téléphone.'
       }
       return 'This domain is not in Firebase Auth’s Authorized Domains list. Please add it under Authentication → Settings → Authorized domains, or sign in with Google or Phone Number.'
-
-    case 'auth/captcha-check-failed':
-    case 'auth/invalid-app-credential':
-      if (lang === 'ar') {
-        return 'فشل التحقق الأمني (reCAPTCHA). يرجى المحاولة مرة أخرى أو استخدام البريد الإلكتروني.'
-      }
-      if (lang === 'fr') {
-        return 'Échec de vérification reCAPTCHA. Veuillez réessayer ou utiliser l’e-mail.'
-      }
-      return 'reCAPTCHA check failed. Please try again or use Email sign-in.'
-
-    case 'auth/invalid-phone-number':
-      if (lang === 'ar') {
-        return 'رقم الهاتف غير صالح. يرجى كتابة الرمز الدولي (مثال: 222+ لموريتانيا).'
-      }
-      if (lang === 'fr') {
-        return 'Numéro de téléphone invalide. Incluez l’indicatif pays (+222 pour la Mauritanie).'
-      }
-      return 'Invalid phone number format. Please include country code (+222 for Mauritania).'
 
     case 'auth/user-not-found':
     case 'auth/wrong-password':

@@ -447,4 +447,21 @@ export default {
   'survey.cooldownNotice': 'لقد أكملت استطلاعًا مؤخرًا. يمكنك المشاركة مجددًا بعد {time}.',
   'survey.cooldownSubtitle': 'الحد الأقصى هو استطلاعان لكل شخص خلال 24 ساعة مع فاصل زمني بينهما.',
   'survey.gotIt': 'حسنًا، فهمت',
+
+  'notice.emailLinkPrompt': 'إكمال تسجيل الدخول بالبريد',
+  'signIn.emailLinkHelp': 'أدخل بريدك الإلكتروني لإرسال رابط دخول فوري بدون كلمة سر.',
+  'signIn.checkEmail': 'أرسلنا رابط الدخول إلى {email}. افتحه على هذا الجهاز أو الصق الرابط أدناه.',
+  'signIn.sending': 'جارٍ الإرسال…',
+  'signIn.pasteLink': 'هل لديك رابط الدخول؟ الصقه هنا',
+  'signIn.completePasted': 'تأكيد وتسجيل الدخول',
+  'signIn.consoleHelpTitle': 'إعداد رابط البريد في Firebase',
+  'signIn.consoleHelp': 'يرجى تفعيل الدخول برابط البريد الإلكتروني (بدون كلمة سر) من لوحة تحكم Firebase، أو التسجيل عبر Google أو رقم الهاتف.',
+
+  'connection.offline': 'غير متصل (تصفح محلي)',
+  'connection.slow': 'شبكة بطيئة',
+
+  'location.friendlyBody': 'نستخدم موقعك فقط لعرض الانقطاعات في حيك — دون حفظ أو مشاركة بياناتك الشخصية.',
+  'location.selectPrompt': 'اختر مقاطعتك:',
+  'location.tapMapHint': 'تحديد على الخريطة',
+  'location.pickNeighborhood': 'اختيار المقاطعة',
 }

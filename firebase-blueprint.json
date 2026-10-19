@@ -272,6 +272,14 @@
           "type": "string",
           "enum": ["unplanned", "maintenance"],
           "maxLength": 20
+        },
+        "reportMode": {
+          "type": "string",
+          "enum": ["current", "past"],
+          "maxLength": 20
+        },
+        "durationHours": {
+          "type": "number"
         }
       },
       "required": ["uid", "type", "lat", "lng", "geohash", "createdAt", "stillOutCount", "restoredCount"]
@@ -350,6 +358,27 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 20
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["radius", "neighbourhood", "region", "global"],
+          "maxLength": 20
+        },
+        "neighbourhoodId": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "neighbourhoodName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "regionId": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "regionName": {
+          "type": "string",
+          "maxLength": 120
         },
         "createdAt": {
           "type": "string",

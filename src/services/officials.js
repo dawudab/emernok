@@ -67,7 +67,17 @@ export function subscribeToRole(uid, onRole, onError) {
   return onSnapshot(
     doc(db, ROLES, uid),
     (snap) => onRole(snap.exists() ? snap.data() : null),
-    onError,
+    (error) => {
+      if (isPermissionError(error)) {
+        try {
+          handleFirestoreError(error, OperationType.GET, `${ROLES}/${uid}`)
+        } catch (wrappedError) {
+          onError?.(wrappedError)
+          return
+        }
+      }
+      onError?.(error)
+    },
   )
 }
 
@@ -76,7 +86,21 @@ export function subscribeToMyRequest(uid, onRequest, onError) {
   return onSnapshot(
     doc(db, ROLE_REQUESTS, uid),
     (snap) => onRequest(snap.exists() ? { id: snap.id, ...snap.data() } : null),
-    onError,
+    (error) => {
+      if (isPermissionError(error)) {
+        try {
+          handleFirestoreError(
+            error,
+            OperationType.GET,
+            `${ROLE_REQUESTS}/${uid}`,
+          )
+        } catch (wrappedError) {
+          onError?.(wrappedError)
+          return
+        }
+      }
+      onError?.(error)
+    },
   )
 }
 
@@ -115,7 +139,17 @@ export function subscribeToPendingRequests(onRequests, onError) {
     pending,
     (snapshot) =>
       onRequests(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))),
-    onError,
+    (error) => {
+      if (isPermissionError(error)) {
+        try {
+          handleFirestoreError(error, OperationType.LIST, ROLE_REQUESTS)
+        } catch (wrappedError) {
+          onError?.(wrappedError)
+          return
+        }
+      }
+      onError?.(error)
+    },
   )
 }
 
@@ -231,7 +265,17 @@ export function subscribeToAnnouncements(onAnnouncements, onError) {
     active,
     (snapshot) =>
       onAnnouncements(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))),
-    onError,
+    (error) => {
+      if (isPermissionError(error)) {
+        try {
+          handleFirestoreError(error, OperationType.LIST, ANNOUNCEMENTS)
+        } catch (wrappedError) {
+          onError?.(wrappedError)
+          return
+        }
+      }
+      onError?.(error)
+    },
   )
 }
 
@@ -270,7 +314,17 @@ export function subscribeToDrafts(onDrafts, onError) {
         .sort((a, b) => toMillis(b.fetchedAt) - toMillis(a.fetchedAt))
       onDrafts(docs)
     },
-    onError,
+    (error) => {
+      if (isPermissionError(error)) {
+        try {
+          handleFirestoreError(error, OperationType.LIST, SOURCE_DRAFTS)
+        } catch (wrappedError) {
+          onError?.(wrappedError)
+          return
+        }
+      }
+      onError?.(error)
+    },
   )
 }
 

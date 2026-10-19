@@ -460,4 +460,30 @@ export default {
   'survey.cooldownNotice': 'Vous avez récemment répondu à un sondage. Vous pourrez participer à nouveau dans {time}.',
   'survey.cooldownSubtitle': 'Chaque personne est limitée à 2 sondages par 24 heures avec un délai entre eux.',
   'survey.gotIt': 'Compris',
+
+  'notice.emailLinkPrompt': 'Finaliser la connexion par e-mail',
+  'signIn.emailLinkHelp': 'Saisissez votre adresse e-mail pour recevoir un lien de connexion sans mot de passe.',
+  'signIn.checkEmail': 'Nous avons envoyé un lien de connexion à {email}. Ouvrez-le sur cet appareil ou collez-le ci-dessous.',
+  'signIn.sending': 'Envoi…',
+  'signIn.pasteLink': 'Vous avez le lien de connexion ? Collez-le ici',
+  'signIn.completePasted': 'Vérifier et se connecter',
+  'signIn.consoleHelpTitle': 'Configuration du lien e-mail Firebase',
+  'signIn.consoleHelp': 'Activez le lien e-mail sans mot de passe dans Authentication → Sign-in method → Email/Password dans la console Firebase, ou connectez-vous avec Google ou téléphone.',
+
+  'connection.offline': 'Hors ligne (cache)',
+  'connection.slow': 'Réseau lent',
+
+  'location.friendlyBody': 'Nous utilisons votre position uniquement pour afficher les pannes de votre quartier — aucune donnée personnelle requise.',
+  'location.selectPrompt': 'Choisissez votre quartier :',
+  'location.tapMapHint': 'Toucher la carte',
+  'location.pickNeighborhood': 'Choisir un quartier',
+
+  'report.pastNotice': 'Enregistrer une coupure passée déjà rétablie.',
+  'report.dateLabel': 'Date de la coupure',
+  'report.timeLabel': 'Heure de début',
+  'report.durationLabel': 'Durée de la coupure',
+  'report.today': 'Aujourd’hui',
+  'report.yesterday': 'Hier',
+  'report.hours': 'Heures',
+  'report.minutes': 'Minutes',
 }

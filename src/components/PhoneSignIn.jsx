@@ -1,14 +1,50 @@
 import { CheckCircle2, PhoneCall, RotateCcw, ShieldCheck, Sparkles } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useI18n } from '../i18n/useI18n'
 import {
   confirmPhoneCode,
   createRecaptcha,
   formatAuthError,
+  formatPhoneNumberE164,
   startPhoneSignIn,
 } from '../services/auth'
 
 const DEFAULT_PREFIX = '+222'
+
+function getPhoneErrorMessage(error, lang = 'en') {
+  const code = error?.code || ''
+  if (code === 'auth/invalid-phone-number') {
+    if (lang === 'ar') {
+      return 'رقم الهاتف غير صالح. يرجى التأكد من كتابة الرقم بالصيغة الدولية الصحيحة (مثال: +22236123456).'
+    }
+    if (lang === 'fr') {
+      return 'Numéro de téléphone invalide. Veuillez vérifier le format international (ex : +22236123456).'
+    }
+    return 'Invalid phone number. Please enter a valid number with country code (e.g. +22236123456).'
+  }
+
+  if (code === 'auth/quota-exceeded') {
+    if (lang === 'ar') {
+      return 'تم تجاوز الحد المسموح به لرسائل SMS مؤقتًا. يرجى المحاولة لاحقًا أو تسجيل الدخول عبر Google أو البريد الإلكتروني.'
+    }
+    if (lang === 'fr') {
+      return 'Quota de SMS dépassé temporairement. Veuillez réessayer plus tard ou utiliser Google / e-mail.'
+    }
+    return 'SMS quota exceeded temporarily. Please try again later or sign in with Google or Email.'
+  }
+
+  if (code === 'auth/captcha-check-failed') {
+    if (lang === 'ar') {
+      return 'فشل التحقق الأمني (reCAPTCHA). يرجى المحاولة مرة أخرى.'
+    }
+    if (lang === 'fr') {
+      return 'La vérification de sécurité reCAPTCHA a échoué. Veuillez réessayer.'
+    }
+    return 'reCAPTCHA verification check failed. Please try again.'
+  }
+
+  return formatAuthError(error, lang)
+}
 
 function PhoneSignIn({ onDone, onSwitchToGoogle }) {
   const { t, lang } = useI18n()
@@ -23,28 +59,29 @@ function PhoneSignIn({ onDone, onSwitchToGoogle }) {
   const recaptchaRef = useRef(null)
   const verifierRef = useRef(null)
 
+  const initVerifier = useCallback((size = 'invisible') => {
+    const target = recaptchaRef.current || 'recaptcha-container'
+    const verifier = createRecaptcha(target, size)
+    verifierRef.current = verifier
+    return verifier
+  }, [])
+
+  // Ensure the reCAPTCHA instance is created after #recaptcha-container has rendered in the DOM
   useEffect(() => {
+    initVerifier('invisible')
+
     return () => {
-      try {
-        verifierRef.current?.clear()
-      } catch {
-        // Safe clear
+      if (window.recaptchaVerifier) {
+        try {
+          window.recaptchaVerifier.clear()
+        } catch {
+          // Ignore cleanup errors
+        }
+        window.recaptchaVerifier = null
       }
       verifierRef.current = null
     }
-  }, [])
-
-  const resetVerifier = () => {
-    try {
-      verifierRef.current?.clear()
-    } catch {
-      // Safe clear
-    }
-    verifierRef.current = null
-    if (recaptchaRef.current) {
-      recaptchaRef.current.innerHTML = ''
-    }
-  }
+  }, [initVerifier])
 
   const sendCode = async (event, forceNormalCaptcha = false) => {
     event?.preventDefault?.()
@@ -52,25 +89,31 @@ function PhoneSignIn({ onDone, onSwitchToGoogle }) {
     setError(null)
     setIsErrorCode39(false)
 
-    // Remove any spaces, dashes, or parentheses from the phone number
-    const cleanPhone = phone.trim().replace(/[\s()-]/g, '')
-    if (!cleanPhone.startsWith('+')) {
+    const formattedPhone = formatPhoneNumberE164(phone)
+    if (!formattedPhone || formattedPhone.length < 8) {
       setError(
-        lang === 'ar'
-          ? 'يرجى إضافة رمز الدولة مع علامة + (مثال: 222+ لموريتانيا).'
-          : lang === 'fr'
-            ? 'Veuillez ajouter l’indicatif international avec + (ex: +222 pour la Mauritanie).'
-            : 'Please include country code with + (e.g. +222 for Mauritania).',
+        getPhoneErrorMessage({ code: 'auth/invalid-phone-number' }, lang),
       )
       setBusy(false)
       return
     }
 
+    // Keep state in sync with formatted E.164 phone number
+    if (formattedPhone !== phone) {
+      setPhone(formattedPhone)
+    }
+
     try {
-      resetVerifier()
-      const captchaSize = forceNormalCaptcha || useNormalCaptcha ? 'normal' : 'invisible'
-      verifierRef.current = createRecaptcha(recaptchaRef.current, captchaSize)
-      const confirmationResult = await startPhoneSignIn(cleanPhone, verifierRef.current)
+      const shouldUseNormal = forceNormalCaptcha || useNormalCaptcha
+      const activeVerifier =
+        shouldUseNormal || !verifierRef.current
+          ? initVerifier(shouldUseNormal ? 'normal' : 'invisible')
+          : verifierRef.current
+
+      const confirmationResult = await startPhoneSignIn(
+        formattedPhone,
+        activeVerifier,
+      )
       setConfirmation(confirmationResult)
     } catch (sendError) {
       const msg = sendError?.message || String(sendError)
@@ -85,8 +128,11 @@ function PhoneSignIn({ onDone, onSwitchToGoogle }) {
         setIsErrorCode39(true)
         setUseNormalCaptcha(true)
       }
-      setError(formatAuthError(sendError, lang))
-      resetVerifier()
+
+      setError(getPhoneErrorMessage(sendError, lang))
+
+      // Recreate fresh reCAPTCHA verifier so subsequent attempts don't reuse a spent widget
+      initVerifier(has39 || useNormalCaptcha ? 'normal' : 'invisible')
     } finally {
       setBusy(false)
     }
@@ -100,7 +146,7 @@ function PhoneSignIn({ onDone, onSwitchToGoogle }) {
       await confirmPhoneCode(confirmation, code.trim())
       onDone?.()
     } catch (verifyError) {
-      setError(formatAuthError(verifyError, lang))
+      setError(getPhoneErrorMessage(verifyError, lang))
     } finally {
       setBusy(false)
     }
@@ -143,6 +189,7 @@ function PhoneSignIn({ onDone, onSwitchToGoogle }) {
               setCode('')
               setError(null)
               setIsErrorCode39(false)
+              initVerifier(useNormalCaptcha ? 'normal' : 'invisible')
             }}
             className="flex w-full items-center justify-center gap-1.5 text-xs font-medium text-zinc-500 hover:underline dark:text-zinc-400"
           >
@@ -206,7 +253,7 @@ function PhoneSignIn({ onDone, onSwitchToGoogle }) {
                       {lang === 'ar'
                         ? 'تسجيل الدخول الفوري بضغطة واحدة دون الحاجة إلى SMS.'
                         : lang === 'fr'
-                          ? 'Connexion instantanée en 1 clic sans SMS.'
+                           ? 'Connexion instantanée en 1 clic sans SMS.'
                           : '1-click instant sign in without SMS.'}
                     </li>
                     <li>
@@ -251,8 +298,8 @@ function PhoneSignIn({ onDone, onSwitchToGoogle }) {
         </div>
       )}
 
-      {/* Recaptcha container */}
-      <div ref={recaptchaRef} id="recaptcha-container" className="flex justify-center" />
+      {/* Always mounted in the DOM when PhoneSignIn loads */}
+      <div id="recaptcha-container" ref={recaptchaRef} className="flex justify-center" />
     </div>
   )
 }

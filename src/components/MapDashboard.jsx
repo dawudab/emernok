@@ -81,7 +81,7 @@ function MapDashboard() {
   const { surveys } = useSurveys()
   const { announcements } = useAnnouncements()
   const { isAdmin } = useOfficial(uid)
-  const { position, hasHardwareFix, locate } = useGeolocation()
+  const { position, locate } = useGeolocation()
   const t = useT()
 
   const [map, setMap] = useState(null)
@@ -604,7 +604,6 @@ function MapDashboard() {
       {showSurveyModal && (
         <UptimeSurveyModal
           isOpen={showSurveyModal}
-          locationDetected={hasHardwareFix}
           position={position}
           uid={effectiveUserKey}
           isGuest={isGuestUser}

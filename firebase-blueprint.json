@@ -213,7 +213,7 @@
     },
     "Report": {
       "title": "Report",
-      "description": "Community outage report pin",
+      "description": "Community utility outage or working status report pin",
       "type": "object",
       "properties": {
         "uid": {
@@ -225,6 +225,11 @@
         "type": {
           "type": "string",
           "enum": ["power", "water", "fuel"],
+          "maxLength": 20
+        },
+        "status": {
+          "type": "string",
+          "enum": ["outage", "working", "resolved"],
           "maxLength": 20
         },
         "lat": {
@@ -242,11 +247,39 @@
           "type": "string",
           "format": "date-time"
         },
+        "lastUpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "resolvedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
         "stillOutCount": {
           "type": "number"
         },
         "restoredCount": {
           "type": "number"
+        },
+        "reportMode": {
+          "type": "string",
+          "enum": ["current", "past"],
+          "maxLength": 20
+        },
+        "outageStartedAt": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "durationHours": {
+          "type": "number"
+        },
+        "cause": {
+          "type": "string",
+          "enum": ["unplanned", "maintenance"],
+          "maxLength": 20
+        },
+        "isOfficial": {
+          "type": "boolean"
         },
         "details": {
           "type": "string",
@@ -396,6 +429,54 @@
         }
       },
       "required": ["stationId", "status", "hasGasCount", "noGasCount", "updatedBy", "updatedAt"]
+    },
+    "UptimeSurvey": {
+      "title": "UptimeSurvey",
+      "description": "Daily crowd-sourced power grid uptime survey response",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lng": {
+          "type": "number"
+        },
+        "isPowerWorking": {
+          "type": "boolean"
+        },
+        "hasBeenWorkingAllDay": {
+          "type": "boolean"
+        },
+        "wentOutToday": {
+          "type": "boolean"
+        },
+        "durationBucket": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "subNeighbourhoodId": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "regionId": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "isGuest": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "lat", "lng", "isPowerWorking", "hasBeenWorkingAllDay", "wentOutToday", "createdAt"]
     }
   },
   "firestore": {
@@ -442,6 +523,10 @@
     "/stationStatus/{stationId}": {
       "schema": "StationStatus",
       "description": "Live gas station availability status"
+    },
+    "/uptimeSurveys/{surveyId}": {
+      "schema": "UptimeSurvey",
+      "description": "Daily crowd-sourced power grid uptime survey responses"
     }
   }
 }

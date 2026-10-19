@@ -1,5 +1,6 @@
 import {
   Fuel,
+  HelpCircle,
   Layers,
   Menu,
   Moon,
@@ -147,32 +148,19 @@ function AppMenu({
   }
 
   return (
-    <div className="relative flex shrink-0 items-center gap-1.5">
-      {/* "?" button for interactive walkthrough of vision, purpose & features */}
+    <div className="relative flex shrink-0 items-center gap-2">
+      {/* "?" button for interactive walkthrough */}
       <button
         type="button"
         onClick={onOpenWalkthrough}
         aria-label={t('walkthrough.title')}
         title={t('walkthrough.title')}
-        className="icon-button size-11 font-mono text-base font-bold outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-white"
+        className="icon-button size-10 rounded-full font-mono text-base font-bold outline-none shadow-sm focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-white"
       >
         {lang === 'ar' ? '؟' : '?'}
       </button>
 
-      <button
-        type="button"
-        onClick={toggleTheme}
-        aria-label={isDark ? t('theme.light') : t('theme.dark')}
-        title={isDark ? t('theme.light') : t('theme.dark')}
-        className="icon-button size-11 outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-white"
-      >
-        {isDark ? (
-          <Sun size={18} strokeWidth={2} aria-hidden="true" />
-        ) : (
-          <Moon size={18} strokeWidth={2} aria-hidden="true" />
-        )}
-      </button>
-
+      {/* Hamburger menu button */}
       <button
         ref={triggerRef}
         type="button"
@@ -181,15 +169,15 @@ function AppMenu({
         aria-expanded={open}
         aria-controls="app-menu"
         aria-label={t('menu.label')}
-        className="icon-button size-11 outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-white"
+        className="icon-button size-10 rounded-full outline-none shadow-sm focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-white"
       >
-        <Menu size={20} strokeWidth={2} aria-hidden="true" />
+        <Menu size={19} strokeWidth={2.2} aria-hidden="true" />
       </button>
 
       {open && (
         <>
           <div
-            className="fixed inset-0 z-[1090]"
+            className="fixed inset-0 z-[1090] bg-black/40 backdrop-blur-xs"
             onClick={close}
             aria-hidden="true"
           />
@@ -218,6 +206,11 @@ function AppMenu({
                 onClick={choose(onOpenProfile)}
               />
               <MenuRow
+                icon={HelpCircle}
+                label={t('walkthrough.title')}
+                onClick={choose(onOpenWalkthrough)}
+              />
+              <MenuRow
                 icon={MENU_ICONS.community}
                 label={t('menu.community')}
                 onClick={choose(onOpenCommunity)}
@@ -237,6 +230,12 @@ function AppMenu({
                   </p>
                 </div>
 
+                <ToggleRow
+                  icon={isDark ? Sun : Moon}
+                  label={isDark ? t('theme.light') : t('theme.dark')}
+                  checked={isDark}
+                  onChange={toggleTheme}
+                />
                 <ToggleRow
                   icon={Layers}
                   label={t('region.sectionTitle')}

@@ -123,11 +123,22 @@ export function useGeolocation() {
     }
   }, [locate])
 
+  const setManualPosition = useCallback((coords) => {
+    if (!coords || coords.lat == null || coords.lng == null) return
+    setState((previous) => ({
+      ...previous,
+      position: { lat: Number(coords.lat), lng: Number(coords.lng) },
+      hasHardwareFix: true,
+      status: 'ready',
+    }))
+  }, [])
+
   return {
     position: state.position ?? FALLBACK_POSITION,
     hasHardwareFix: state.hasHardwareFix,
     status: state.status,
     permission: state.permission,
     locate,
+    setManualPosition,
   }
 }

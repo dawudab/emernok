@@ -10,7 +10,8 @@ function initialTheme() {
   } catch {
     // Ignore storage errors in restricted browsing contexts.
   }
-  return 'light'
+  const hour = new Date().getHours()
+  return hour >= 6 && hour < 19 ? 'light' : 'dark'
 }
 
 function ThemeProvider({ children }) {

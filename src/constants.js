@@ -5,10 +5,13 @@ export const DEFAULT_ZOOM = 13
 // Must stay in sync with firestore.rules
 export const REPORT_COOLDOWN_SECONDS = 60
 export const DAILY_REPORT_LIMIT = 20
-export const REPORT_TTL_HOURS = 24
+export const STALE_REPORT_DIM_HOURS = 6
+export const REPORT_TTL_HOURS = 12
+export const WORKING_REPORT_TTL_HOURS = 12
 export const PAST_OUTAGE_MAX_DAYS = 7
 export const RESTORED_THRESHOLD = 3
 export const MAX_REPORT_DETAILS_LENGTH = 280
+export const ACTIVE_REPORT_FOLLOWUP_MINUTES = 30
 
 export const MESSAGE_COOLDOWN_SECONDS = 10
 export const DAILY_MESSAGE_LIMIT = 100
@@ -24,11 +27,16 @@ export const REPORT_PIN_RADIUS_M = 45
 export const VERIFY_RADIUS_M = 60
 export const VERIFY_MIN_USERS = 3
 
-// Map pin and circle colours show *validation status*, not utility type:
-// yellow = unconfirmed (< 3 reporters), red = verified (>= 3 reporters).
+// 3-Tier Map Status Colours:
+// 1. unverified = Reported (1-2 reports, pulsing amber/yellow)
+// 2. verified = Verified Outage (3+ reports or Official, solid red/cyan/orange)
+// 3. working = Resolved / Power Working (emerald green)
 export const STATUS_COLORS = {
   unverified: '#facc15',
-  verified: '#ff3b30',
+  verified: '#ef4444',
+  verifiedWater: '#06b6d4',
+  verifiedFuel: '#f97316',
+  working: '#10b981',
 }
 
 /**

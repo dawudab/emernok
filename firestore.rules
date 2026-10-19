@@ -214,32 +214,38 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isValidId(draftId) && isAdmin();
     }
 
-    function statsPath() { return counterPath('userStats'); }
-    function firstEverReport() { return !exists(statsPath()); }
-    function statsBefore() { return get(statsPath()).data; }
-    function statsAfter() { return getAfter(statsPath()).data; }
+    function statsPathFor(userId) {
+      return /databases/$(database)/documents/userStats/$(userId);
+    }
+    function firstEverReportFor(userId) { return !exists(statsPathFor(userId)); }
+    function statsBeforeFor(userId) { return get(statsPathFor(userId)).data; }
+    function statsAfterFor(userId) { return getAfter(statsPathFor(userId)).data; }
 
-    function cooldownElapsed() {
-      return firstEverReport()
-        || request.time > statsBefore().lastReportAt + duration.value(60, 's');
+    function cooldownElapsedFor(userId) {
+      return firstEverReportFor(userId)
+        || request.time > statsBeforeFor(userId).lastReportAt + duration.value(60, 's');
     }
 
-    function dayWindowExpired() {
-      return firstEverReport()
-        || request.time > statsBefore().dayStartedAt + duration.value(1, 'd');
+    function dayWindowExpiredFor(userId) {
+      return firstEverReportFor(userId)
+        || request.time > statsBeforeFor(userId).dayStartedAt + duration.value(1, 'd');
     }
 
-    function underDailyCap() {
-      return dayWindowExpired() || statsBefore().dailyCount < 20;
+    function underDailyCapFor(userId) {
+      return dayWindowExpiredFor(userId) || statsBeforeFor(userId).dailyCount < 20;
     }
 
-    function counterBumped() {
-      return statsAfter().uid == request.auth.uid
-        && statsAfter().lastReportAt == request.time;
+    function counterBumpedFor(userId) {
+      return statsAfterFor(userId).uid == userId
+        && statsAfterFor(userId).lastReportAt == request.time;
     }
 
-    function votePath(reportId) {
-      return /databases/$(database)/documents/reports/$(reportId)/votes/$(request.auth.uid);
+    function isAuthorizedReporter(userId) {
+      return isValidId(userId)
+        && (
+          (isSignedIn() && request.auth.uid == userId)
+          || userId.matches('^guest_[a-zA-Z0-9_\\-]+$')
+        );
     }
 
     function isValidReport(data) {
@@ -247,7 +253,8 @@ service cloud.firestore {
         && data.keys().hasOnly([
           'uid', 'type', 'lat', 'lng', 'geohash', 'createdAt',
           'stillOutCount', 'restoredCount', 'details',
-          'reportMode', 'outageStartedAt', 'durationHours', 'cause'
+          'reportMode', 'outageStartedAt', 'durationHours', 'cause',
+          'status', 'lastUpdatedAt', 'resolvedAt', 'isOfficial'
         ])
         && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128
         && data.type is string && data.type.size() <= 20 && data.type in ['power', 'water', 'fuel']
@@ -261,43 +268,54 @@ service cloud.firestore {
         && (!('reportMode' in data) || (data.reportMode is string && data.reportMode.size() <= 20 && data.reportMode in ['current', 'past']))
         && (!('outageStartedAt' in data) || (data.outageStartedAt is string && data.outageStartedAt.size() <= 40))
         && (!('durationHours' in data) || (data.durationHours is number && data.durationHours >= 0 && data.durationHours <= 168))
-        && (!('cause' in data) || (data.cause is string && data.cause.size() <= 20 && data.cause in ['unplanned', 'maintenance']));
+        && (!('cause' in data) || (data.cause is string && data.cause.size() <= 20 && data.cause in ['unplanned', 'maintenance']))
+        && (!('status' in data) || (data.status is string && data.status.size() <= 20 && data.status in ['outage', 'working', 'resolved']))
+        && (!('lastUpdatedAt' in data) || (data.lastUpdatedAt is timestamp))
+        && (!('resolvedAt' in data) || (data.resolvedAt is timestamp))
+        && (!('isOfficial' in data) || (data.isOfficial is bool));
     }
 
     match /reports/{reportId} {
-      // Outage reports are public map pins readable by all visitors.
+      // Outage and working status reports are public map pins readable by all visitors.
       allow get, list: if true;
 
-      allow create: if verifiedUser()
-        && isValidId(reportId)
+      allow create: if isValidId(reportId)
         && isValidReport(incoming())
-        && incoming().uid == request.auth.uid
-        && incoming().createdAt == request.time
-        && incoming().stillOutCount == 0
-        && incoming().restoredCount == 0
-        && cooldownElapsed()
-        && underDailyCap()
-        && counterBumped();
-
-      allow update: if verifiedUser()
-        && isValidId(reportId)
-        && isValidReport(incoming())
-        && incoming().uid == existing().uid
-        && incoming().createdAt == existing().createdAt
-        && !exists(votePath(reportId))
-        && incoming().diff(existing()).affectedKeys().hasOnly(['stillOutCount', 'restoredCount'])
+        && isAuthorizedReporter(incoming().uid)
         && (
-          (getAfter(votePath(reportId)).data.value == 'still_out'
-            && incoming().stillOutCount == existing().stillOutCount + 1
-            && incoming().restoredCount == existing().restoredCount)
-          || (getAfter(votePath(reportId)).data.value == 'restored'
-            && incoming().restoredCount == existing().restoredCount + 1
-            && incoming().stillOutCount == existing().stillOutCount)
+          isAdmin()
+          || (
+            incoming().createdAt == request.time
+            && incoming().stillOutCount == 0
+            && incoming().restoredCount == 0
+          )
+        );
+
+      allow update: if isValidId(reportId)
+        && isValidReport(incoming())
+        && (
+          isAdmin()
+          || (
+            incoming().uid == existing().uid
+            && incoming().createdAt == existing().createdAt
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'stillOutCount', 'restoredCount', 'status', 'lastUpdatedAt', 'resolvedAt'
+            ])
+            && (
+              // Author or community updating status / vote counts
+              (incoming().stillOutCount == existing().stillOutCount + 1
+                && incoming().restoredCount == existing().restoredCount)
+              || (incoming().restoredCount == existing().restoredCount + 1
+                && incoming().stillOutCount == existing().stillOutCount)
+              || (isAuthorizedReporter(existing().uid)
+                && incoming().status in ['outage', 'resolved', 'working'])
+            )
+          )
         );
 
       allow delete: if isAdmin()
-        || (isSignedIn() && existing().uid == request.auth.uid)
-        || (isSignedIn() && request.time > existing().createdAt + duration.value(24, 'h'));
+        || isAuthorizedReporter(existing().uid)
+        || request.time > existing().createdAt + duration.value(12, 'h');
 
       function isValidVote(data, voterId) {
         return data.keys().hasAll(['uid', 'value', 'createdAt'])
@@ -310,10 +328,9 @@ service cloud.firestore {
       match /votes/{voterId} {
         allow get, list: if true;
 
-        allow create: if verifiedUser()
-          && isValidId(reportId)
+        allow create: if isValidId(reportId)
           && isValidId(voterId)
-          && request.auth.uid == voterId
+          && isAuthorizedReporter(voterId)
           && isValidVote(incoming(), voterId)
           && exists(/databases/$(database)/documents/reports/$(reportId));
 
@@ -325,38 +342,19 @@ service cloud.firestore {
       return data.keys().hasAll(['uid', 'lastReportAt', 'dailyCount', 'dayStartedAt'])
         && data.keys().hasOnly(['uid', 'lastReportAt', 'dailyCount', 'dayStartedAt'])
         && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128 && data.uid == userId
-        && data.lastReportAt == request.time
-        && data.dailyCount is int && data.dailyCount >= 1 && data.dailyCount <= 20
+        && data.lastReportAt is timestamp
+        && data.dailyCount is int && data.dailyCount >= 1 && data.dailyCount <= 100
         && data.dayStartedAt is timestamp;
     }
 
     match /userStats/{userId} {
-      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
-      allow list: if false;
+      allow get: if isAuthorizedReporter(userId) || isAdmin();
+      allow list: if isAdmin();
 
-      allow create: if verifiedUser()
-        && isValidId(userId)
-        && request.auth.uid == userId
-        && isValidUserStats(incoming(), userId)
-        && incoming().dailyCount == 1
-        && incoming().dayStartedAt == request.time;
+      allow create, update: if (isAuthorizedReporter(userId) || isAdmin())
+        && isValidUserStats(incoming(), userId);
 
-      allow update: if verifiedUser()
-        && isValidId(userId)
-        && request.auth.uid == userId
-        && isValidUserStats(incoming(), userId)
-        && incoming().uid == existing().uid
-        && incoming().diff(existing()).affectedKeys().hasOnly(['lastReportAt', 'dailyCount', 'dayStartedAt'])
-        && (
-          (request.time > existing().dayStartedAt + duration.value(1, 'd')
-            && incoming().dailyCount == 1
-            && incoming().dayStartedAt == request.time)
-          || (request.time <= existing().dayStartedAt + duration.value(1, 'd')
-            && incoming().dailyCount == existing().dailyCount + 1
-            && incoming().dayStartedAt == existing().dayStartedAt)
-        );
-
-      allow delete: if false;
+      allow delete: if isAdmin();
     }
 
     function chatPath() { return counterPath('chatStats'); }
@@ -464,23 +462,22 @@ service cloud.firestore {
         && data.status is string && data.status.size() <= 20 && data.status in ['has_gas', 'no_gas']
         && data.hasGasCount is int && data.hasGasCount >= 0
         && data.noGasCount is int && data.noGasCount >= 0
-        && data.updatedBy is string && data.updatedBy.size() > 0 && data.updatedBy.size() <= 128 && data.updatedBy == request.auth.uid
+        && data.updatedBy is string && data.updatedBy.size() > 0 && data.updatedBy.size() <= 128
+        && isAuthorizedReporter(data.updatedBy)
         && data.updatedAt == request.time;
     }
 
     match /stationStatus/{stationId} {
       allow get, list: if true;
 
-      allow create: if verifiedUser()
-        && isValidId(stationId)
+      allow create: if isValidId(stationId)
         && isValidStationStatus(incoming(), stationId)
         && (
           (incoming().status == 'has_gas' && incoming().hasGasCount == 1 && incoming().noGasCount == 0)
           || (incoming().status == 'no_gas' && incoming().noGasCount == 1 && incoming().hasGasCount == 0)
         );
 
-      allow update: if verifiedUser()
-        && isValidId(stationId)
+      allow update: if isValidId(stationId)
         && isValidStationStatus(incoming(), stationId)
         && incoming().stationId == existing().stationId
         && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'hasGasCount', 'noGasCount', 'updatedBy', 'updatedAt'])
@@ -494,6 +491,37 @@ service cloud.firestore {
         );
 
       allow delete: if false;
+    }
+
+    function isValidUptimeSurvey(data) {
+      return data.keys().hasAll(['uid', 'lat', 'lng', 'isPowerWorking', 'hasBeenWorkingAllDay', 'wentOutToday', 'createdAt'])
+        && data.keys().hasOnly([
+          'uid', 'lat', 'lng', 'isPowerWorking', 'hasBeenWorkingAllDay', 'wentOutToday',
+          'durationBucket', 'subNeighbourhoodId', 'regionId', 'isGuest', 'createdAt'
+        ])
+        && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128
+        && data.lat is number && data.lat >= -90 && data.lat <= 90
+        && data.lng is number && data.lng >= -180 && data.lng <= 180
+        && data.isPowerWorking is bool
+        && data.hasBeenWorkingAllDay is bool
+        && data.wentOutToday is bool
+        && (!('durationBucket' in data) || (data.durationBucket is string && data.durationBucket.size() <= 30))
+        && (!('subNeighbourhoodId' in data) || (data.subNeighbourhoodId is string && data.subNeighbourhoodId.size() <= 80))
+        && (!('regionId' in data) || (data.regionId is string && data.regionId.size() <= 80))
+        && (!('isGuest' in data) || (data.isGuest is bool))
+        && data.createdAt == request.time;
+    }
+
+    match /uptimeSurveys/{surveyId} {
+      // Crowd-sourced uptime surveys are readable by all visitors for city uptime statistics.
+      // Both guests and signed-in members can submit their local area power status.
+      allow get, list: if true;
+
+      allow create: if isValidId(surveyId)
+        && isValidUptimeSurvey(incoming());
+
+      allow update: if false;
+      allow delete: if isAdmin();
     }
   }
 }

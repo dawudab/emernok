@@ -5,6 +5,9 @@ const SVG = (body, { size = 16, fill = 'none' } = {}) =>
 
 export const MARKER_GLYPHS = {
   power: SVG('<polygon points="13 2 4 14 11 14 10 22 19 10 12 10 13 2" />'),
+  working: SVG(
+    '<polygon points="13 2 4 14 11 14 10 22 19 10 12 10 13 2" /><polyline points="15 16 17.5 18.5 22 14" />',
+  ),
   water: SVG('<path d="M12 21a6 6 0 0 1-6-6c0-4 6-11 6-11s6 7 6 11a6 6 0 0 1-6 6z" />'),
   fuel: SVG(
     '<path d="M5 21V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v16" /><path d="M3 21h12" /><path d="M7 9h4" /><path d="M16 10l2 2v5a2 2 0 0 0 4 0V9l-3-3" />',

@@ -20,6 +20,7 @@ import {
 } from 'recharts'
 import { getLocalName } from '../constants'
 import { useI18n } from '../i18n/useI18n'
+import { formatRelativeTime } from '../services/reports'
 import { STATUS_NO_GAS } from '../services/stations'
 
 const STATUS_STYLE = {
@@ -89,7 +90,7 @@ function SevenDayTrendChart({ data, lang, t }) {
         </span>
       </div>
 
-      <div className="h-24 w-full" dir="ltr">
+      <div className="h-20 w-full" dir="ltr">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={localizedData}
@@ -169,6 +170,14 @@ function RegionPopupContent({ region, initialSubId = null }) {
   const palette =
     STATUS_STYLE[activeTarget.overallStatus] ?? STATUS_STYLE.normal
   const backArrow = dir === 'rtl' ? '→' : '←'
+  const uptime24h =
+    activeTarget.uptime24hPercent ?? activeTarget.uptimePercent ?? 100
+  const relativeUpdated = formatRelativeTime(activeTarget.lastUpdatedMs, lang)
+  const confirmedCount = Math.max(
+    1,
+    (activeTarget.reporterCount ?? activeTarget.totalActiveReporters ?? 0) +
+      (activeTarget.todaySurveysCount ?? 0),
+  )
 
   return (
     <div
@@ -210,21 +219,40 @@ function RegionPopupContent({ region, initialSubId = null }) {
         </span>
       </div>
 
-      {/* Power Grid Level + 7-Day Uptime */}
+      {/* Provenance & Relative Timestamp */}
+      <div className="flex items-center justify-between gap-1.5 text-[10px]">
+        <span
+          className={`rounded-full px-2 py-0.5 font-semibold ${
+            activeTarget.hasOfficialUpdate
+              ? 'bg-purple-500/20 text-purple-700 dark:text-purple-300'
+              : 'bg-black/5 text-zinc-700 dark:bg-white/10 dark:text-zinc-300'
+          }`}
+        >
+          {activeTarget.hasOfficialUpdate
+            ? t('provenance.official')
+            : t('provenance.community', { count: confirmedCount })}
+        </span>
+        <span className="tabular inline-flex items-center gap-1 text-zinc-500 dark:text-zinc-400">
+          <Clock size={10} aria-hidden="true" />
+          {t('updated.ago', { time: relativeUpdated })}
+        </span>
+      </div>
+
+      {/* 24h Power Uptime % + 7-Day Uptime */}
       <div className="grid grid-cols-2 gap-1.5">
         <div className="rounded-xl bg-black/5 px-2 py-1.5 dark:bg-white/5">
           <span className="flex items-center gap-1 text-[10px] opacity-75">
-            <Zap size={11} className="text-amber-500" aria-hidden="true" />
-            {t('region.powerLevel')}
+            <Zap size={11} className="text-emerald-500" aria-hidden="true" />
+            {t('region.uptime24h')}
           </span>
-          <span className="tabular mt-0.5 block font-mono text-xs font-bold">
-            {activeTarget.powerLevel}%
+          <span className="tabular mt-0.5 block font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
+            {uptime24h}%
           </span>
           <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-black/10 dark:bg-white/15">
             <div
               className="h-full rounded-full"
               style={{
-                width: `${activeTarget.powerLevel}%`,
+                width: `${uptime24h}%`,
                 background: palette.color,
               }}
             />
@@ -251,6 +279,22 @@ function RegionPopupContent({ region, initialSubId = null }) {
           </span>
         </div>
       </div>
+
+      {/* Today's Crowd-Sourced Survey Summary Badge */}
+      {activeTarget.todaySurveysCount > 0 && (
+        <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 px-2.5 py-1.5 text-[10px] text-emerald-800 dark:text-emerald-200">
+          <span className="inline-flex items-center gap-1 font-bold">
+            <Zap size={11} fill="currentColor" className="text-emerald-500" aria-hidden="true" />
+            {t('survey.badge')}
+          </span>
+          <span className="tabular font-mono text-[9px] font-semibold">
+            {t('survey.surveyStat', {
+              pct: activeTarget.todayWorkingPercent ?? 100,
+              count: activeTarget.todaySurveysCount,
+            })}
+          </span>
+        </div>
+      )}
 
       {/* 7-Day Historical Trend of Uptime & Outage Frequency (Recharts) */}
       <SevenDayTrendChart data={activeTarget.dailyTrend} lang={lang} t={t} />

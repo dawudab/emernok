@@ -4,7 +4,11 @@ import {
   NEIGHBOURHOODS,
   PAST_OUTAGE_MAX_DAYS,
 } from '../constants'
-import { isWithinHours } from '../services/reports'
+import {
+  getReportLastUpdatedMs,
+  isWithinHours,
+  isWorkingOrResolved,
+} from '../services/reports'
 import { STATUS_NO_GAS, resolveStationStatus } from '../services/stations'
 
 // Minimum thresholds so a neighbourhood never changes color from just 1 or 2
@@ -72,11 +76,6 @@ export function findSubNeighbourhoodForPoint(lat, lng) {
   return best
 }
 
-/**
- * Counts how many distinct spatial zones (separated by at least
- * SPREAD_ZONE_SEPARATION_M) have active outages, plus the maximum distance
- * span across clusters in the area.
- */
 function computeSpatialSpread(clusters) {
   if (!clusters || clusters.length === 0) {
     return { spreadZones: 0, maxSpanM: 0 }
@@ -113,7 +112,17 @@ function getReportTimestampMs(report) {
     const parsed = Date.parse(report.outageStartedAt)
     if (!Number.isNaN(parsed)) return parsed
   }
-  return report.createdAt?.toMillis?.() ?? Date.now()
+  return getReportLastUpdatedMs(report) || Date.now()
+}
+
+function getSurveyTimestampMs(survey) {
+  if (survey.createdAt?.toMillis) return survey.createdAt.toMillis()
+  if (typeof survey.createdAt === 'number') return survey.createdAt
+  if (typeof survey.createdAt === 'string') {
+    const parsed = Date.parse(survey.createdAt)
+    if (!Number.isNaN(parsed)) return parsed
+  }
+  return Date.now()
 }
 
 function toDateBucketKey(ms) {
@@ -122,14 +131,63 @@ function toDateBucketKey(ms) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-function computeHistoryMetrics(areaReports, areaAnnouncements) {
+function computeHistoryMetrics(areaReports, areaAnnouncements, areaSurveys = []) {
   const weekHours = PAST_OUTAGE_MAX_DAYS * 24 // 168h
   const recentReports = areaReports.filter((r) =>
     isWithinHours(r, weekHours),
   )
 
+  const reports24h = recentReports.filter((r) => isWithinHours(r, 24))
+  const working24hReports = reports24h.filter((r) => isWorkingOrResolved(r))
+  const outage24hReports = reports24h.filter((r) => !isWorkingOrResolved(r))
+
+  const recentSurveys = (areaSurveys || []).filter(
+    (s) => Date.now() - getSurveyTimestampMs(s) <= weekHours * 3600 * 1000,
+  )
+  const todaySurveys = recentSurveys.filter(
+    (s) => Date.now() - getSurveyTimestampMs(s) <= 24 * 3600 * 1000,
+  )
+  const todayWorkingCount =
+    todaySurveys.filter((s) => s.isPowerWorking).length + working24hReports.length
+  const totalTodaySignals = todaySurveys.length + reports24h.length
+  const todayWorkingPercent =
+    totalTodaySignals > 0
+      ? Math.round((todayWorkingCount / totalTodaySignals) * 100)
+      : null
+
+  // Calculate 24h Power Uptime % using ratio of working/resolved reports & surveys vs outage durations over last 24h
+  let outageHours24h = 0
+  for (const r of outage24hReports) {
+    if (r.durationHours && r.durationHours > 0) {
+      outageHours24h += Math.min(24, Number(r.durationHours))
+    } else {
+      const ageH = Math.max(
+        0.5,
+        Math.min(12, (Date.now() - getReportTimestampMs(r)) / (3600 * 1000)),
+      )
+      outageHours24h += ageH * 0.65
+    }
+  }
+  const effectiveOutage24h =
+    outage24hReports.length > 0
+      ? Math.min(20, outageHours24h / Math.max(1, Math.sqrt(outage24hReports.length)))
+      : 0
+  let uptime24hPercent = Number(
+    Math.max(15, Math.min(100, ((24 - effectiveOutage24h) / 24) * 100)).toFixed(1),
+  )
+  if (working24hReports.length > 0 || todaySurveys.length > 0) {
+    const positiveRatio =
+      (working24hReports.length + todaySurveys.filter((s) => s.isPowerWorking).length) /
+      Math.max(1, working24hReports.length + outage24hReports.length + todaySurveys.length)
+    const positivePct = positiveRatio * 100
+    uptime24hPercent = Number(
+      (uptime24hPercent * 0.55 + positivePct * 0.45).toFixed(1),
+    )
+  }
+
   let downtimeHours = 0
   for (const r of recentReports) {
+    if (isWorkingOrResolved(r)) continue
     if (r.durationHours && r.durationHours > 0) {
       downtimeHours += Math.min(24, Number(r.durationHours))
     } else if (r.reportMode !== 'past') {
@@ -143,18 +201,29 @@ function computeHistoryMetrics(areaReports, areaAnnouncements) {
     }
   }
 
+  const outageReportsWeek = recentReports.filter((r) => !isWorkingOrResolved(r))
   const effectiveDowntime = Math.min(
     weekHours * 0.65,
-    downtimeHours / Math.max(1, Math.sqrt(recentReports.length)),
+    downtimeHours / Math.max(1, Math.sqrt(outageReportsWeek.length)),
   )
-  const uptimePercent = Number(
+  let uptimePercent = Number(
     Math.max(
       35,
       Math.min(100, ((weekHours - effectiveDowntime) / weekHours) * 100),
     ).toFixed(1),
   )
 
-  // Build 7-day historical trend (oldest day to today) for Recharts
+  if (recentSurveys.length > 0 || working24hReports.length > 0) {
+    const recentWorkingCount =
+      recentSurveys.filter((s) => s.isPowerWorking).length + working24hReports.length
+    const totalSignals = recentSurveys.length + working24hReports.length
+    const surveyScore = (recentWorkingCount / Math.max(1, totalSignals)) * 100
+    uptimePercent = Number(
+      (uptimePercent * 0.6 + surveyScore * 0.4).toFixed(1),
+    )
+  }
+
+  // Build 7-day historical trend
   const now = new Date()
   const dailyMap = new Map()
   for (let i = PAST_OUTAGE_MAX_DAYS - 1; i >= 0; i--) {
@@ -170,6 +239,8 @@ function computeHistoryMetrics(areaReports, areaAnnouncements) {
       dayLabel,
       outages: 0,
       rawDowntimeH: 0,
+      surveys: 0,
+      workingSurveys: 0,
     })
   }
 
@@ -178,12 +249,28 @@ function computeHistoryMetrics(areaReports, areaAnnouncements) {
     const key = toDateBucketKey(ts)
     const bucket = dailyMap.get(key)
     if (!bucket) continue
-    bucket.outages += 1
-    const dur =
-      r.durationHours && r.durationHours > 0
-        ? Math.min(24, Number(r.durationHours))
-        : 2
-    bucket.rawDowntimeH += dur
+    if (isWorkingOrResolved(r)) {
+      bucket.surveys += 1
+      bucket.workingSurveys += 1
+    } else {
+      bucket.outages += 1
+      const dur =
+        r.durationHours && r.durationHours > 0
+          ? Math.min(24, Number(r.durationHours))
+          : 2
+      bucket.rawDowntimeH += dur
+    }
+  }
+
+  for (const s of recentSurveys) {
+    const ts = getSurveyTimestampMs(s)
+    const key = toDateBucketKey(ts)
+    const bucket = dailyMap.get(key)
+    if (!bucket) continue
+    bucket.surveys += 1
+    if (s.isPowerWorking) {
+      bucket.workingSurveys += 1
+    }
   }
 
   const dailyTrend = Array.from(dailyMap.values()).map((bucket) => {
@@ -191,21 +278,33 @@ function computeHistoryMetrics(areaReports, areaAnnouncements) {
       bucket.outages > 0
         ? Math.min(20, bucket.rawDowntimeH / Math.sqrt(bucket.outages))
         : 0
-    const dayUptime = Number(
+    let dayUptime = Number(
       Math.max(15, Math.min(100, ((24 - scaledDowntime) / 24) * 100)).toFixed(1),
     )
+
+    if (bucket.surveys > 0) {
+      const surveyUptime = (bucket.workingSurveys / bucket.surveys) * 100
+      dayUptime = Number(
+        (bucket.outages > 0
+          ? dayUptime * 0.45 + surveyUptime * 0.55
+          : Math.max(25, surveyUptime)
+        ).toFixed(1),
+      )
+    }
+
     return {
       dateKey: bucket.dateKey,
       dayLabel: bucket.dayLabel,
       uptime: dayUptime,
       outages: bucket.outages,
+      surveysCount: bucket.surveys,
     }
   })
 
-  const sortedByTime = [...recentReports].sort(
+  const sortedOutagesByTime = [...outageReportsWeek].sort(
     (a, b) => getReportTimestampMs(b) - getReportTimestampMs(a),
   )
-  const latestOutageReport = sortedByTime[0] ?? null
+  const latestOutageReport = sortedOutagesByTime[0] ?? null
   const lastOutageInfo = latestOutageReport
     ? {
         timestampMs: getReportTimestampMs(latestOutageReport),
@@ -215,9 +314,17 @@ function computeHistoryMetrics(areaReports, areaAnnouncements) {
       }
     : null
 
+  const allTimestamps = [
+    ...recentReports.map((r) => getReportTimestampMs(r)),
+    ...recentSurveys.map((s) => getSurveyTimestampMs(s)),
+    ...(areaAnnouncements || []).map((a) => a.createdAt?.toMillis?.() ?? 0),
+  ].filter(Boolean)
+  const lastUpdatedMs =
+    allTimestamps.length > 0 ? Math.max(...allTimestamps) : 0
+
   const latestOfficial = (areaAnnouncements ?? [])[0] ?? null
   const latestMaintReport =
-    sortedByTime.find((r) => r.cause === 'maintenance') ?? null
+    sortedOutagesByTime.find((r) => r.cause === 'maintenance') ?? null
 
   let recentMaintenance = null
   if (latestOfficial) {
@@ -225,20 +332,28 @@ function computeHistoryMetrics(areaReports, areaAnnouncements) {
       source: latestOfficial.org || 'SOMELEC',
       text: latestOfficial.text,
       timestampMs: latestOfficial.createdAt?.toMillis?.() ?? Date.now(),
+      isOfficial: true,
     }
   } else if (latestMaintReport) {
     recentMaintenance = {
       source: 'Community',
       text: latestMaintReport.details || 'Scheduled / observed maintenance',
       timestampMs: getReportTimestampMs(latestMaintReport),
+      isOfficial: false,
     }
   }
 
   return {
     uptimePercent,
+    uptime24hPercent,
+    working24hCount: working24hReports.length + todaySurveys.filter((s) => s.isPowerWorking).length,
     dailyTrend,
     lastOutageInfo,
+    lastUpdatedMs,
+    hasOfficialUpdate: Boolean(latestOfficial),
     recentMaintenance,
+    todaySurveysCount: totalTodaySignals,
+    todayWorkingPercent,
   }
 }
 
@@ -248,11 +363,17 @@ export function computeRegionStats(
   announcements,
   stations,
   stationStatuses,
+  surveys = [],
 ) {
   const powerReports = (allReports ?? []).filter((r) => r.type === 'power')
+  const outageClusters = (clusters ?? []).filter((c) => c.tier !== 'working')
+  const workingClusters = (clusters ?? []).filter((c) => c.tier === 'working')
 
   return NEIGHBOURHOODS.map((region) => {
-    const regionClusters = (clusters ?? []).filter(
+    const regionClusters = outageClusters.filter(
+      (cluster) => findRegionForPoint(cluster.lat, cluster.lng).id === region.id,
+    )
+    const regionWorkingClusters = workingClusters.filter(
       (cluster) => findRegionForPoint(cluster.lat, cluster.lng).id === region.id,
     )
     const regionReports = powerReports.filter(
@@ -263,26 +384,34 @@ export function computeRegionStats(
         ann.areaId === region.id ||
         findRegionForPoint(ann.lat, ann.lng).id === region.id,
     )
+    const regionSurveys = (surveys ?? []).filter(
+      (s) =>
+        s.regionId === region.id ||
+        findRegionForPoint(s.lat, s.lng).id === region.id,
+    )
 
-    // Compute stats for each of the 4 sub-neighbourhoods inside this region
     const subNeighbourhoodStats = region.subNeighbourhoods.map((sub) => {
       const subClusters = regionClusters.filter(
+        (c) => findSubNeighbourhoodForPoint(c.lat, c.lng).id === sub.id,
+      )
+      const subWorkingClusters = regionWorkingClusters.filter(
         (c) => findSubNeighbourhoodForPoint(c.lat, c.lng).id === sub.id,
       )
       const subReports = regionReports.filter(
         (r) => findSubNeighbourhoodForPoint(r.lat, r.lng).id === sub.id,
       )
+      const subSurveys = regionSurveys.filter(
+        (s) =>
+          s.subNeighbourhoodId === sub.id ||
+          findSubNeighbourhoodForPoint(s.lat, s.lng).id === sub.id,
+      )
       const verifiedSubClusters = subClusters.filter((c) => c.verified).length
       const totalSubReporters = subClusters.reduce(
-        (sum, c) => sum + (c.reporterCount ?? 1),
+        (sum, c) => sum + (c.confirmedCount ?? c.reporterCount ?? 1),
         0,
       )
       const { spreadZones, maxSpanM } = computeSpatialSpread(subClusters)
 
-      // Neighbourhood Color-Change Rule:
-      // 1 or 2 outages in a neighbourhood NEVER change the neighbourhood's color.
-      // It only changes to 'warning' or 'critical' when there is a significant
-      // number of reports spread across multiple separated zones of the neighbourhood.
       let subStatus = 'normal'
       if (
         (totalSubReporters >= SUB_CRITICAL_MIN_REPORTERS ||
@@ -304,7 +433,11 @@ export function computeRegionStats(
         (subClusters.length - verifiedSubClusters) * 5
       const subPowerLevel = Math.max(15, 100 - subPenalty)
 
-      const history = computeHistoryMetrics(subReports, regionAnnouncements)
+      const history = computeHistoryMetrics(
+        subReports,
+        regionAnnouncements,
+        subSurveys,
+      )
 
       return {
         ...sub,
@@ -312,6 +445,7 @@ export function computeRegionStats(
         overallStatus: subStatus,
         powerLevel: subPowerLevel,
         outageCount: subClusters.length,
+        workingClusterCount: subWorkingClusters.length,
         verifiedOutages: verifiedSubClusters,
         reporterCount: totalSubReporters,
         spreadZones,
@@ -322,7 +456,7 @@ export function computeRegionStats(
     const verifiedOutages = regionClusters.filter((c) => c.verified).length
     const unverifiedOutages = regionClusters.length - verifiedOutages
     const totalActiveReporters = regionClusters.reduce(
-      (sum, c) => sum + (c.reporterCount ?? 1),
+      (sum, c) => sum + (c.confirmedCount ?? c.reporterCount ?? 1),
       0,
     )
 
@@ -333,10 +467,6 @@ export function computeRegionStats(
       (s) => s.overallStatus !== 'normal',
     ).length
 
-    // Whole-Region Color-Change Rule:
-    // 1. Gas status NEVER affects region power status.
-    // 2. Requires multiple neighbourhoods across the region to be significantly
-    //    disrupted before the region changes color.
     let overallStatus = 'normal'
     if (
       affectedSubCount >= REGION_CRITICAL_MIN_AFFECTED_SUBS &&
@@ -367,6 +497,7 @@ export function computeRegionStats(
           status,
           hasGasCount: record?.hasGasCount ?? 0,
           noGasCount: record?.noGasCount ?? 0,
+          updatedAtMs: record?.updatedAt?.toMillis?.() ?? 0,
         }
       })
 
@@ -378,12 +509,14 @@ export function computeRegionStats(
     const regionHistory = computeHistoryMetrics(
       regionReports,
       regionAnnouncements,
+      regionSurveys,
     )
 
     return {
       ...region,
       powerLevel,
       outageCount: regionClusters.length,
+      workingClusterCount: regionWorkingClusters.length,
       verifiedOutages,
       unverifiedOutages,
       totalActiveReporters,
@@ -398,3 +531,4 @@ export function computeRegionStats(
     }
   })
 }
+

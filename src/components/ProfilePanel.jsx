@@ -10,6 +10,8 @@ import { useAuth } from '../context/useAuth'
 import { useOfficial } from '../hooks/useOfficial'
 import { useMyReports } from '../hooks/useReports'
 import { useI18n, useT } from '../i18n/useI18n'
+import { sendEmailVerification } from 'firebase/auth'
+import { auth } from '../firebaseConfig'
 import { refreshIdentity, signOut } from '../services/auth'
 import { deleteReport, isResolved } from '../services/reports'
 import { useTheme } from '../theme/useTheme'
@@ -30,24 +32,45 @@ function VerifyEmailNotice({ email }) {
       <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
         {t('profile.verifyBody')}
       </p>
-      <button
-        type="button"
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true)
-          try {
-            await refreshIdentity()
-            setState(t('profile.verifyStill'))
-          } catch (error) {
-            setState(error.message)
-          } finally {
-            setBusy(false)
-          }
-        }}
-        className="btn-primary mt-3 min-h-11 w-full rounded-full text-sm"
-      >
-        {t('profile.verifyCheck')}
-      </button>
+      <div className="mt-3 flex flex-col gap-2">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true)
+            try {
+              await refreshIdentity()
+              setState(t('profile.verifyStill'))
+            } catch (error) {
+              setState(error.message)
+            } finally {
+              setBusy(false)
+            }
+          }}
+          className="btn-primary min-h-11 w-full rounded-full text-sm"
+        >
+          {t('profile.verifyCheck')}
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={async () => {
+            if (!auth.currentUser) return
+            setBusy(true)
+            try {
+              await sendEmailVerification(auth.currentUser)
+              setState('Verification email resent! Please check your inbox.')
+            } catch (err) {
+              setState(err.message)
+            } finally {
+              setBusy(false)
+            }
+          }}
+          className="text-xs font-semibold text-zinc-600 underline dark:text-zinc-300"
+        >
+          Resend verification email
+        </button>
+      </div>
       {state && <p className="mt-2 text-xs">{state}</p>}
     </div>
   )

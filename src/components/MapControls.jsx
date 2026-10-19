@@ -6,7 +6,8 @@ function MapControls({ map, onRecenter }) {
   const t = useT()
 
   return (
-    <div className="pointer-events-none absolute end-[max(1rem,env(safe-area-inset-right,0px))] bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] z-20 flex flex-col items-center gap-2">
+    <div className="pointer-events-none absolute end-[max(1rem,env(safe-area-inset-right,0px))] bottom-[max(5.25rem,calc(env(safe-area-inset-bottom,0px)+5rem))] z-20 flex flex-col items-center gap-2">
+
       <button
         type="button"
         onClick={onRecenter}
@@ -17,7 +18,7 @@ function MapControls({ map, onRecenter }) {
         <Navigation size={18} strokeWidth={2.2} aria-hidden="true" />
       </button>
 
-      <div className="glass pointer-events-auto flex flex-col overflow-hidden rounded-full">
+      <div className="glass pointer-events-auto flex flex-col overflow-hidden rounded-full shadow-lg">
         <button
           type="button"
           onClick={() => map?.zoomIn()}

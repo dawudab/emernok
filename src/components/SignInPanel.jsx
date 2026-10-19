@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useAuth } from '../context/useAuth'
-import { useT } from '../i18n/useI18n'
-import { signInWithGoogle } from '../services/auth'
+import { useI18n } from '../i18n/useI18n'
+import { formatAuthError, signInWithGoogle } from '../services/auth'
 import EmailSignIn from './EmailSignIn'
 import PhoneSignIn from './PhoneSignIn'
 
 function SignInPanel({ onDone }) {
   const { emailLinkStatus } = useAuth()
-  const t = useT()
+  const { t, lang } = useI18n()
   const [method, setMethod] = useState('email')
   const [googleBusy, setGoogleBusy] = useState(false)
   const [googleError, setGoogleError] = useState(null)
@@ -24,7 +24,7 @@ function SignInPanel({ onDone }) {
       onDone?.()
     } catch (error) {
       if (error?.code !== 'auth/popup-closed-by-user') {
-        setGoogleError(error.message)
+        setGoogleError(formatAuthError(error, lang))
       }
     } finally {
       setGoogleBusy(false)
@@ -119,9 +119,16 @@ function SignInPanel({ onDone }) {
 
       <div className="mt-4">
         {active === 'email' ? (
-          <EmailSignIn onDone={onDone} />
+          <EmailSignIn
+            onDone={onDone}
+            onSwitchToGoogle={handleGoogleSignIn}
+            onSwitchToPhone={() => setMethod('phone')}
+          />
         ) : (
-          <PhoneSignIn onDone={onDone} />
+          <PhoneSignIn
+            onDone={onDone}
+            onSwitchToGoogle={handleGoogleSignIn}
+          />
         )}
       </div>
     </div>

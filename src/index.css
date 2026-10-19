@@ -82,6 +82,13 @@ body {
   color: #fafafa;
 }
 
+/* Disable default mobile tap highlight flash across iOS and Android */
+*,
+*::before,
+*::after {
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* Numbers read as data, not prose. */
 .tabular {
   font-family: var(--font-mono);
@@ -91,22 +98,20 @@ body {
 
 /* ---- glass -------------------------------------------------------------- */
 
-/* One definition per surface so light and dark stay in step. Sheets are more
-   opaque than floating chrome on purpose: long text over a moving map is
-   unreadable at the same blur that looks good on a pill. */
+/* Adaptive glass surfaces calibrated for high-contrast legibility in light and dark mode */
 .glass {
-  @apply rounded-3xl border border-white/40 bg-white/40 text-zinc-900 shadow-xl backdrop-blur-xl transition-all duration-300;
-  @apply dark:border-white/10 dark:bg-black/30 dark:text-white dark:shadow-2xl;
+  @apply rounded-3xl border border-black/5 bg-white/90 text-zinc-900 shadow-xl backdrop-blur-xl transition-all duration-300;
+  @apply dark:border-white/10 dark:bg-zinc-900/80 dark:text-white dark:shadow-2xl;
 }
 
 .glass-pill {
-  @apply rounded-full border border-white/40 bg-white/40 text-zinc-900 shadow-xl backdrop-blur-xl transition-all duration-300;
-  @apply dark:border-white/10 dark:bg-black/30 dark:text-white dark:shadow-2xl;
+  @apply rounded-full border border-black/5 bg-white/90 text-zinc-900 shadow-xl backdrop-blur-xl transition-all duration-300;
+  @apply dark:border-white/10 dark:bg-zinc-950/80 dark:text-white dark:shadow-2xl;
 }
 
 .glass-sheet {
-  @apply border border-white/50 bg-white/85 text-zinc-900 shadow-2xl backdrop-blur-2xl transition-all duration-300;
-  @apply dark:border-white/10 dark:bg-zinc-950/85 dark:text-zinc-100;
+  @apply border border-black/10 bg-white/95 text-zinc-900 shadow-2xl backdrop-blur-2xl transition-all duration-300;
+  @apply dark:border-white/10 dark:bg-zinc-950/90 dark:text-zinc-100;
 }
 
 /* Secondary surfaces inside a sheet. */
@@ -132,8 +137,8 @@ body {
 }
 
 .icon-button {
-  @apply flex items-center justify-center rounded-full border border-white/40 bg-white/40 text-zinc-900 backdrop-blur-xl transition-all duration-300;
-  @apply dark:border-white/10 dark:bg-white/10 dark:text-white;
+  @apply flex items-center justify-center rounded-full border border-black/5 bg-white/85 text-zinc-800 shadow-sm backdrop-blur-xl transition-all duration-200 hover:scale-105 active:scale-95;
+  @apply dark:border-white/10 dark:bg-white/10 dark:text-white dark:hover:bg-white/15;
 }
 
 /* ---- leaflet ------------------------------------------------------------ */

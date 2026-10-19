@@ -6,25 +6,25 @@ function MapControls({ map, onRecenter }) {
   const t = useT()
 
   return (
-    <div className="pointer-events-none absolute end-[max(1rem,env(safe-area-inset-right,0px))] bottom-[max(5.25rem,calc(env(safe-area-inset-bottom,0px)+5rem))] z-20 flex flex-col items-center gap-2">
+    <div className="pointer-events-none absolute end-[max(1rem,env(safe-area-inset-right,0px))] bottom-[max(6.5rem,calc(env(safe-area-inset-bottom,0px)+6.25rem))] z-20 flex flex-col items-center gap-2">
 
       <button
         type="button"
         onClick={onRecenter}
         aria-label={t('menu.recenter')}
         title={t('menu.recenter')}
-        className="icon-button pointer-events-auto size-11 shadow-lg"
+        className="pointer-events-auto flex size-11 items-center justify-center rounded-full border border-black/5 bg-white/90 text-zinc-800 shadow-md backdrop-blur-xl transition-all duration-200 hover:scale-105 active:scale-95 dark:border-white/10 dark:bg-zinc-900/90 dark:text-zinc-100 dark:shadow-xl"
       >
         <Navigation size={18} strokeWidth={2.2} aria-hidden="true" />
       </button>
 
-      <div className="glass pointer-events-auto flex flex-col overflow-hidden rounded-full shadow-lg">
+      <div className="pointer-events-auto flex flex-col overflow-hidden rounded-full border border-black/5 bg-white/90 shadow-md backdrop-blur-xl transition-all duration-300 dark:border-white/10 dark:bg-zinc-900/90 dark:shadow-xl">
         <button
           type="button"
           onClick={() => map?.zoomIn()}
           aria-label={t('map.zoomIn')}
           title={t('map.zoomIn')}
-          className="flex size-11 items-center justify-center border-b border-black/10 text-zinc-800 transition-colors active:bg-black/10 dark:border-white/10 dark:text-zinc-100 dark:active:bg-white/10"
+          className="flex size-11 items-center justify-center border-b border-black/5 text-zinc-700 transition-colors hover:text-zinc-950 active:bg-black/5 dark:border-white/10 dark:text-zinc-200 dark:hover:text-white dark:active:bg-white/10"
         >
           <Plus size={18} strokeWidth={2.2} aria-hidden="true" />
         </button>
@@ -35,7 +35,7 @@ function MapControls({ map, onRecenter }) {
           }
           aria-label={t('map.zoomOut')}
           title={t('map.zoomOut')}
-          className="flex size-11 items-center justify-center text-zinc-800 transition-colors active:bg-black/10 dark:text-zinc-100 dark:active:bg-white/10"
+          className="flex size-11 items-center justify-center text-zinc-700 transition-colors hover:text-zinc-950 active:bg-black/5 dark:text-zinc-200 dark:hover:text-white dark:active:bg-white/10"
         >
           <Minus size={18} strokeWidth={2.2} aria-hidden="true" />
         </button>

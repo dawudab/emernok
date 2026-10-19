@@ -77,12 +77,12 @@ function appendTimestamp(key) {
 
 export function getDailySurveySubmissionCount(userKey) {
   const safeKey = userKey || 'guest'
-  return getRecentTimestamps(`emernok_survey_sub_${safeKey}`).length
+  return getRecentTimestamps(`emernok_v3_survey_sub_${safeKey}`).length
 }
 
 export function getLastSurveySubmissionTime(userKey) {
   const safeKey = userKey || 'guest'
-  const timestamps = getRecentTimestamps(`emernok_survey_sub_${safeKey}`)
+  const timestamps = getRecentTimestamps(`emernok_v3_survey_sub_${safeKey}`)
   if (!timestamps.length) return 0
   return Math.max(...timestamps)
 }
@@ -148,65 +148,20 @@ export function canTakeSurvey(userKey) {
 
 export function getDailySurveyDismissalCount(userKey) {
   const safeKey = userKey || 'guest'
-  return getRecentTimestamps(`emernok_survey_dismiss_${safeKey}`).length
-}
-
-export function getLastSurveyDismissalTime(userKey) {
-  const safeKey = userKey || 'guest'
-  const timestamps = getRecentTimestamps(`emernok_survey_dismiss_${safeKey}`)
-  if (!timestamps.length) return 0
-  return Math.max(...timestamps)
+  return getRecentTimestamps(`emernok_v3_survey_dismiss_${safeKey}`).length
 }
 
 export function getDailySurveyPromptCount(userKey) {
   const safeKey = userKey || 'guest'
-  return getRecentTimestamps(`emernok_survey_prompt_${safeKey}`).length
-}
-
-export function getLastSurveyPromptTime(userKey) {
-  const safeKey = userKey || 'guest'
-  const timestamps = getRecentTimestamps(`emernok_survey_prompt_${safeKey}`)
-  if (!timestamps.length) return 0
-  return Math.max(...timestamps)
+  return getRecentTimestamps(`emernok_v3_survey_prompt_${safeKey}`).length
 }
 
 /**
- * Per-user cap & cooldown: Survey pop-up only automatically triggers up to 2 times a day per user,
- * on a timer, with at least 4 hours cooldown between prompts and never on every page refresh.
+ * Per-user cap: Survey pop-up only automatically triggers up to 2 times a day per user,
+ * and only if the user is not in a survey cooldown window.
  */
 export function canAutoPromptSurvey(userKey) {
-  if (!canTakeSurvey(userKey)) {
-    return false
-  }
-  const safeKey = userKey || 'guest'
-
-  // Prevent auto-prompting on every refresh within the same browser session
-  if (typeof window !== 'undefined') {
-    try {
-      if (
-        window.sessionStorage.getItem(`emernok_survey_auto_prompted_${safeKey}`) ===
-        'true'
-      ) {
-        return false
-      }
-    } catch {
-      // Ignore storage errors
-    }
-  }
-
-  // Enforce cooldown interval between auto-prompts or dismissals (at least 4 hours)
-  const lastPrompt = getLastSurveyPromptTime(safeKey)
-  const lastDismiss = getLastSurveyDismissalTime(safeKey)
-  const lastEvent = Math.max(lastPrompt, lastDismiss)
-  if (lastEvent > 0 && Date.now() - lastEvent < SURVEY_COOLDOWN_MS) {
-    return false
-  }
-
-  const prompts = getDailySurveyPromptCount(safeKey)
-  if (prompts >= MAX_SURVEYS_PER_DAY) {
-    return false
-  }
-  return true
+  return canTakeSurvey(userKey)
 }
 
 // Keep canPromptSurvey alias for backward compatibility
@@ -221,40 +176,25 @@ export function shouldShowSurveyReminder(userKey) {
   if (!canTakeSurvey(userKey)) {
     return false
   }
-  const safeKey = userKey || 'guest'
-  const submissions = getDailySurveySubmissionCount(safeKey)
-  if (submissions >= MAX_SURVEYS_PER_DAY) {
-    return false
-  }
-  const dismissals = getDailySurveyDismissalCount(safeKey)
-  const prompts = getDailySurveyPromptCount(safeKey)
-  // If the user has been prompted or dismissed without completing, show reminder button at bottom
+  const submissions = getDailySurveySubmissionCount(userKey)
+  const dismissals = getDailySurveyDismissalCount(userKey)
+  const prompts = getDailySurveyPromptCount(userKey)
+  // If the user has been prompted or dismissed without completing, show reminder
   return dismissals > 0 || prompts > submissions
 }
 
 export function recordSurveyPrompt(userKey) {
   const safeKey = userKey || 'guest'
-  appendTimestamp(`emernok_survey_prompt_${safeKey}`)
-  try {
-    if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem(
-        `emernok_survey_auto_prompted_${safeKey}`,
-        'true',
-      )
-    }
-  } catch {
-    // Ignore storage errors
-  }
+  appendTimestamp(`emernok_v3_survey_prompt_${safeKey}`)
 }
 
 export function recordSurveySubmission(userKey) {
   const safeKey = userKey || 'guest'
-  appendTimestamp(`emernok_survey_sub_${safeKey}`)
+  appendTimestamp(`emernok_v3_survey_sub_${safeKey}`)
   // Clear dismissals once submitted so reminder prompt disappears
   try {
     if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(`emernok_survey_dismiss_${safeKey}`)
-      window.sessionStorage.removeItem(`emernok_survey_auto_prompted_${safeKey}`)
+      window.localStorage.removeItem(`emernok_v3_survey_dismiss_${safeKey}`)
     }
   } catch {
     // Ignore storage errors
@@ -263,17 +203,7 @@ export function recordSurveySubmission(userKey) {
 
 export function recordSurveyDismissal(userKey) {
   const safeKey = userKey || 'guest'
-  appendTimestamp(`emernok_survey_dismiss_${safeKey}`)
-  try {
-    if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem(
-        `emernok_survey_auto_prompted_${safeKey}`,
-        'true',
-      )
-    }
-  } catch {
-    // Ignore storage errors
-  }
+  appendTimestamp(`emernok_v3_survey_dismiss_${safeKey}`)
 }
 
 export function readCachedSurveys() {
@@ -373,31 +303,6 @@ export async function submitUptimeSurvey({
     handleFirestoreError(err, OperationType.CREATE, SURVEYS_COLLECTION)
     throw err
   }
-}
-
-/**
- * Dedicated 1-tap "Power is Working" quick survey ping.
- * Stores strictly in the uptimeSurveys database (NOT in reports), tracking neighborhood uptime.
- */
-export async function submitQuickWorkingSurvey({
-  uid,
-  lat,
-  lng,
-  regionId = '',
-  subNeighbourhoodId = '',
-  isGuest = false,
-}) {
-  return submitUptimeSurvey({
-    uid,
-    lat,
-    lng,
-    isPowerWorking: true,
-    hasBeenWorkingAllDay: true,
-    wentOutToday: false,
-    regionId,
-    subNeighbourhoodId,
-    isGuest,
-  })
 }
 
 /**

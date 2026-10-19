@@ -5,10 +5,11 @@ import {
   ExternalLink,
   Star,
   Wrench,
+  X,
   Zap,
 } from 'lucide-react'
-import { Fragment, useMemo, useState } from 'react'
-import { Polygon, Popup } from 'react-leaflet'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Polygon, Popup, useMap } from 'react-leaflet'
 import {
   Area,
   Bar,
@@ -20,7 +21,6 @@ import {
 } from 'recharts'
 import { getLocalName } from '../constants'
 import { useI18n } from '../i18n/useI18n'
-import { formatRelativeTime } from '../services/reports'
 import { STATUS_NO_GAS } from '../services/stations'
 
 const STATUS_STYLE = {
@@ -90,7 +90,7 @@ function SevenDayTrendChart({ data, lang, t }) {
         </span>
       </div>
 
-      <div className="h-20 w-full" dir="ltr">
+      <div className="h-24 w-full" dir="ltr">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={localizedData}
@@ -162,6 +162,7 @@ function SevenDayTrendChart({ data, lang, t }) {
 
 function RegionPopupContent({ region, initialSubId = null }) {
   const { t, lang, dir } = useI18n()
+  const map = useMap()
   const [selectedSubId, setSelectedSubId] = useState(initialSubId)
 
   const selectedSub =
@@ -170,23 +171,15 @@ function RegionPopupContent({ region, initialSubId = null }) {
   const palette =
     STATUS_STYLE[activeTarget.overallStatus] ?? STATUS_STYLE.normal
   const backArrow = dir === 'rtl' ? '→' : '←'
-  const uptime24h =
-    activeTarget.uptime24hPercent ?? activeTarget.uptimePercent ?? 100
-  const relativeUpdated = formatRelativeTime(activeTarget.lastUpdatedMs, lang)
-  const confirmedCount = Math.max(
-    1,
-    (activeTarget.reporterCount ?? activeTarget.totalActiveReporters ?? 0) +
-      (activeTarget.todaySurveysCount ?? 0),
-  )
 
   return (
     <div
       dir={dir}
       className="max-h-[min(64dvh,22rem)] w-64 max-w-[78vw] space-y-2 overflow-y-auto overscroll-contain pe-0.5 text-start text-zinc-900 dark:text-zinc-100"
     >
-      {/* Header: Region or Neighbourhood name + Power Grid status badge */}
+      {/* Header: Region or Neighbourhood name + Power Grid status badge + Close button */}
       <div className="flex items-start justify-between gap-2 border-b border-black/10 pb-1.5 dark:border-white/10">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           {selectedSub ? (
             <>
               <button
@@ -206,53 +199,44 @@ function RegionPopupContent({ region, initialSubId = null }) {
             </span>
           )}
         </div>
-        <span
-          className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-[9px] font-semibold uppercase ${
-            activeTarget.overallStatus === 'critical'
-              ? 'bg-red-500/20 text-red-600 dark:text-red-300'
-              : activeTarget.overallStatus === 'warning'
-                ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300'
-                : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
-          }`}
-        >
-          {t(`region.status.${activeTarget.overallStatus}`)}
-        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span
+            className={`rounded-full px-2 py-0.5 font-mono text-[9px] font-semibold uppercase ${
+              activeTarget.overallStatus === 'critical'
+                ? 'bg-red-500/20 text-red-600 dark:text-red-300'
+                : activeTarget.overallStatus === 'warning'
+                  ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300'
+                  : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+            }`}
+          >
+            {t(`region.status.${activeTarget.overallStatus}`)}
+          </span>
+          <button
+            type="button"
+            onClick={() => map.closePopup()}
+            aria-label={t('common.close')}
+            className="rounded-full p-0.5 text-zinc-400 hover:bg-black/5 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-zinc-200 transition"
+          >
+            <X size={13} strokeWidth={2.4} aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
-      {/* Provenance & Relative Timestamp */}
-      <div className="flex items-center justify-between gap-1.5 text-[10px]">
-        <span
-          className={`rounded-full px-2 py-0.5 font-semibold ${
-            activeTarget.hasOfficialUpdate
-              ? 'bg-purple-500/20 text-purple-700 dark:text-purple-300'
-              : 'bg-black/5 text-zinc-700 dark:bg-white/10 dark:text-zinc-300'
-          }`}
-        >
-          {activeTarget.hasOfficialUpdate
-            ? t('provenance.official')
-            : t('provenance.community', { count: confirmedCount })}
-        </span>
-        <span className="tabular inline-flex items-center gap-1 text-zinc-500 dark:text-zinc-400">
-          <Clock size={10} aria-hidden="true" />
-          {t('updated.ago', { time: relativeUpdated })}
-        </span>
-      </div>
-
-      {/* 24h Power Uptime % + 7-Day Uptime */}
+      {/* Power Grid Level + 7-Day Uptime */}
       <div className="grid grid-cols-2 gap-1.5">
         <div className="rounded-xl bg-black/5 px-2 py-1.5 dark:bg-white/5">
           <span className="flex items-center gap-1 text-[10px] opacity-75">
-            <Zap size={11} className="text-emerald-500" aria-hidden="true" />
-            {t('region.uptime24h')}
+            <Zap size={11} className="text-amber-500" aria-hidden="true" />
+            {t('region.powerLevel')}
           </span>
-          <span className="tabular mt-0.5 block font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
-            {uptime24h}%
+          <span className="tabular mt-0.5 block font-mono text-xs font-bold">
+            {activeTarget.powerLevel}%
           </span>
           <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-black/10 dark:bg-white/15">
             <div
               className="h-full rounded-full"
               style={{
-                width: `${uptime24h}%`,
+                width: `${activeTarget.powerLevel}%`,
                 background: palette.color,
               }}
             />
@@ -414,6 +398,61 @@ function RegionPopupContent({ region, initialSubId = null }) {
 }
 
 function RegionZonesLayer({ visible, regions }) {
+  const map = useMap()
+  const isPopupOpenRef = useRef(false)
+  const dismissedAtRef = useRef(0)
+
+  useEffect(() => {
+    if (!map) return undefined
+
+    const handlePopupOpen = () => {
+      isPopupOpenRef.current = true
+    }
+    const handlePopupClose = () => {
+      isPopupOpenRef.current = false
+    }
+
+    map.on('popupopen', handlePopupOpen)
+    map.on('popupclose', handlePopupClose)
+
+    const container = map.getContainer()
+
+    const handleDocumentPointerDown = (event) => {
+      if (!isPopupOpenRef.current) return
+      const target = event.target
+      if (target instanceof Element && target.closest('.leaflet-popup')) {
+        return
+      }
+      // User clicked outside the open popup — dismiss it immediately
+      dismissedAtRef.current = Date.now()
+      isPopupOpenRef.current = false
+      map.closePopup()
+    }
+
+    const handleContainerClickCapture = (event) => {
+      const target = event.target
+      if (target instanceof Element && target.closest('.leaflet-popup')) {
+        return
+      }
+      // If we just dismissed an open popup via pointerdown, prevent the polygon underneath
+      // from immediately opening another popup on the same click gesture.
+      if (Date.now() - dismissedAtRef.current < 400) {
+        event.stopPropagation()
+        map.closePopup()
+      }
+    }
+
+    document.addEventListener('pointerdown', handleDocumentPointerDown, true)
+    container.addEventListener('click', handleContainerClickCapture, true)
+
+    return () => {
+      map.off('popupopen', handlePopupOpen)
+      map.off('popupclose', handlePopupClose)
+      document.removeEventListener('pointerdown', handleDocumentPointerDown, true)
+      container.removeEventListener('click', handleContainerClickCapture, true)
+    }
+  }, [map])
+
   if (!visible) return null
 
   return regions.map((region) => {
@@ -449,6 +488,8 @@ function RegionZonesLayer({ visible, regions }) {
                 maxWidth={280}
                 minWidth={240}
                 autoPan={true}
+                autoClose={true}
+                closeOnClick={true}
                 autoPanPaddingTopLeft={[16, 76]}
                 autoPanPaddingBottomRight={[16, 76]}
               >

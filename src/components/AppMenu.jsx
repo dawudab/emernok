@@ -169,7 +169,11 @@ function AppMenu({
         aria-expanded={open}
         aria-controls="app-menu"
         aria-label={t('menu.label')}
-        className="icon-button size-10 rounded-full outline-none shadow-sm focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-white"
+        className={`icon-button size-10 rounded-full outline-none shadow-sm transition-all duration-200 focus-visible:ring-2 focus-visible:ring-amber-500 ${
+          open
+            ? 'bg-amber-400/20 text-amber-700 dark:text-amber-300 ring-2 ring-amber-400/60'
+            : ''
+        }`}
       >
         <Menu size={19} strokeWidth={2.2} aria-hidden="true" />
       </button>
@@ -177,7 +181,7 @@ function AppMenu({
       {open && (
         <>
           <div
-            className="fixed inset-0 z-[1090] bg-black/40 backdrop-blur-xs"
+            className="fixed inset-0 z-40 bg-black/15 dark:bg-black/50 backdrop-blur-[2px] transition-opacity duration-200 animate-in fade-in"
             onClick={close}
             aria-hidden="true"
           />
@@ -186,7 +190,7 @@ function AppMenu({
             ref={menuRef}
             role="dialog"
             aria-label={t('menu.label')}
-            className="glass-sheet absolute top-full end-0 z-[1095] mt-2 flex max-h-[min(78dvh,calc(100vh-5.5rem))] w-[min(19rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-3xl shadow-2xl"
+            className="glass-sheet absolute top-full end-0 z-50 mt-2 flex max-h-[min(78dvh,calc(100vh-5.5rem))] w-[min(20rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-3xl border border-black/10 dark:border-white/10 bg-white/95 dark:bg-zinc-950/95 text-zinc-900 dark:text-zinc-100 shadow-[0_16px_40px_rgba(0,0,0,0.16)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.6)] backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200"
           >
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
               <div className="border-b border-black/5 px-4 py-2.5 dark:border-white/10">

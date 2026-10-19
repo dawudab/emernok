@@ -10,10 +10,14 @@ import { useAuth } from '../context/useAuth'
 import { useOfficial } from '../hooks/useOfficial'
 import { useMyReports } from '../hooks/useReports'
 import { useI18n, useT } from '../i18n/useI18n'
-import { sendEmailVerification } from 'firebase/auth'
-import { auth } from '../firebaseConfig'
 import { refreshIdentity, signOut } from '../services/auth'
-import { deleteReport, isResolved } from '../services/reports'
+import {
+  deleteReport,
+  formatElapsedOutageTime,
+  getElapsedDurationMinutes,
+  isResolved,
+  markReportPowerRestored,
+} from '../services/reports'
 import { useTheme } from '../theme/useTheme'
 import Sheet from './Sheet'
 import SignInPanel from './SignInPanel'
@@ -32,45 +36,24 @@ function VerifyEmailNotice({ email }) {
       <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
         {t('profile.verifyBody')}
       </p>
-      <div className="mt-3 flex flex-col gap-2">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={async () => {
-            setBusy(true)
-            try {
-              await refreshIdentity()
-              setState(t('profile.verifyStill'))
-            } catch (error) {
-              setState(error.message)
-            } finally {
-              setBusy(false)
-            }
-          }}
-          className="btn-primary min-h-11 w-full rounded-full text-sm"
-        >
-          {t('profile.verifyCheck')}
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={async () => {
-            if (!auth.currentUser) return
-            setBusy(true)
-            try {
-              await sendEmailVerification(auth.currentUser)
-              setState('Verification email resent! Please check your inbox.')
-            } catch (err) {
-              setState(err.message)
-            } finally {
-              setBusy(false)
-            }
-          }}
-          className="text-xs font-semibold text-zinc-600 underline dark:text-zinc-300"
-        >
-          Resend verification email
-        </button>
-      </div>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true)
+          try {
+            await refreshIdentity()
+            setState(t('profile.verifyStill'))
+          } catch (error) {
+            setState(error.message)
+          } finally {
+            setBusy(false)
+          }
+        }}
+        className="btn-primary mt-3 min-h-11 w-full rounded-full text-sm"
+      >
+        {t('profile.verifyCheck')}
+      </button>
       {state && <p className="mt-2 text-xs">{state}</p>}
     </div>
   )
@@ -167,6 +150,25 @@ function ProfilePanel({ clusters = [], onFocusReport, onClose }) {
       resolved,
     }
   }, [enrichedReports])
+
+  const [restoringId, setRestoringId] = useState(null)
+
+  const handleMarkRestored = async (report) => {
+    setRestoringId(report.id)
+    setDeleteError(null)
+    try {
+      const minutes = getElapsedDurationMinutes(report)
+      await markReportPowerRestored({
+        reportId: report.id,
+        uid,
+        durationMinutes: minutes,
+      })
+    } catch (err) {
+      setDeleteError(err.message)
+    } finally {
+      setRestoringId(null)
+    }
+  }
 
   const handleDelete = async (reportId) => {
     setDeletingId(reportId)
@@ -305,6 +307,9 @@ function ProfilePanel({ clusters = [], onFocusReport, onClose }) {
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2.5 py-1 font-mono text-[10px] font-semibold tracking-wider text-emerald-700 uppercase dark:text-emerald-300">
                     <CheckCircle2 size={12} aria-hidden="true" />
                     {t('profile.statusResolved')}
+                    {report.durationMinutes
+                      ? ` · ${report.durationMinutes}m`
+                      : ''}
                   </span>
                 )}
                 {state === 'verified' && (
@@ -323,6 +328,25 @@ function ProfilePanel({ clusters = [], onFocusReport, onClose }) {
                   </span>
                 )}
               </div>
+
+              {/* If power report is ongoing/unresolved, show live timer and action to mark restored */}
+              {report.type === 'power' && state !== 'resolved' && !report.restoredAt && (
+                <div className="mt-2.5 flex items-center justify-between gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 p-2 text-xs">
+                  <span className="flex items-center gap-1 font-mono text-[11px] font-bold text-amber-800 dark:text-amber-300">
+                    <Clock size={12} aria-hidden="true" />
+                    <span>⏱️ {formatElapsedOutageTime(report, lang)}</span>
+                  </span>
+                  <button
+                    type="button"
+                    disabled={restoringId === report.id}
+                    onClick={() => handleMarkRestored(report)}
+                    className="flex items-center gap-1 rounded-full bg-emerald-500 hover:bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs transition active:scale-95 disabled:opacity-50"
+                  >
+                    <CheckCircle2 size={12} strokeWidth={2.4} aria-hidden="true" />
+                    <span>{restoringId === report.id ? t('common.working') : t('activeOutage.markRestoredShort')}</span>
+                  </button>
+                </div>
+              )}
 
               {report.details && (
                 <p className="mt-2 rounded-xl bg-black/5 px-3 py-1.5 text-xs italic text-zinc-700 dark:bg-white/5 dark:text-zinc-300">

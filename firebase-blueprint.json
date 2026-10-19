@@ -213,7 +213,7 @@
     },
     "Report": {
       "title": "Report",
-      "description": "Community utility outage or working status report pin",
+      "description": "Community outage report pin",
       "type": "object",
       "properties": {
         "uid": {
@@ -225,11 +225,6 @@
         "type": {
           "type": "string",
           "enum": ["power", "water", "fuel"],
-          "maxLength": 20
-        },
-        "status": {
-          "type": "string",
-          "enum": ["outage", "working", "resolved"],
           "maxLength": 20
         },
         "lat": {
@@ -247,43 +242,36 @@
           "type": "string",
           "format": "date-time"
         },
-        "lastUpdatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "resolvedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
         "stillOutCount": {
           "type": "number"
         },
         "restoredCount": {
           "type": "number"
         },
-        "reportMode": {
+        "details": {
           "type": "string",
-          "enum": ["current", "past"],
+          "maxLength": 280
+        },
+        "powerStatus": {
+          "type": "string",
+          "enum": ["out", "restored"],
           "maxLength": 20
         },
         "outageStartedAt": {
           "type": "string",
           "maxLength": 40
         },
-        "durationHours": {
+        "restoredAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "durationMinutes": {
           "type": "number"
         },
         "cause": {
           "type": "string",
           "enum": ["unplanned", "maintenance"],
           "maxLength": 20
-        },
-        "isOfficial": {
-          "type": "boolean"
-        },
-        "details": {
-          "type": "string",
-          "maxLength": 280
         }
       },
       "required": ["uid", "type", "lat", "lng", "geohash", "createdAt", "stillOutCount", "restoredCount"]

@@ -125,10 +125,7 @@ function SignInPanel({ onDone }) {
             onSwitchToPhone={() => setMethod('phone')}
           />
         ) : (
-          <PhoneSignIn
-            onDone={onDone}
-            onSwitchToGoogle={handleGoogleSignIn}
-          />
+          <PhoneSignIn onDone={onDone} />
         )}
       </div>
     </div>

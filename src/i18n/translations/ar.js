@@ -119,7 +119,7 @@ export default {
   'signIn.finishing': 'جارٍ الإكمال…',
 
   'phone.label': 'رقم الهاتف',
-  'phone.placeholder': '+222 12 34 56 78',
+  'phone.placeholder': '36123456',
   'phone.send': 'إرسال الرمز',
   'phone.sending': 'جارٍ الإرسال…',
   'phone.codeLabel': 'أدخل الرمز المكوّن من 6 أرقام المرسل إلى {phone}',
@@ -127,6 +127,16 @@ export default {
   'phone.verifying': 'جارٍ التأكيد…',
   'phone.change': 'استخدام رقم آخر',
   'phone.keep': 'تبقى بلاغاتك السابقة معك عند إضافة رقم هاتف.',
+  'phone.resend': 'إعادة إرسال الرمز',
+  'phone.resendIn': 'إعادة الإرسال بعد {seconds} ث',
+  'phone.errorInvalidPhone':
+    'أدخل رقم هاتف موريتاني صالحًا من 8 أرقام يبدأ بـ 2 أو 3 أو 4.',
+  'phone.errorInvalidCode': 'الرمز غير صحيح. يرجى التحقق من الرسالة والمحاولة مرة أخرى.',
+  'phone.errorExpired': 'انتهت صلاحية هذا الرمز. يرجى طلب رمز جديد.',
+  'phone.errorTooMany': 'محاولات خاطئة كثيرة. يرجى طلب رمز جديد.',
+  'phone.errorCooldown': 'يرجى الانتظار دقيقة قبل طلب رمز آخر.',
+  'phone.errorSendFailed':
+    'تعذر إرسال الرسالة حاليًا. يرجى المحاولة بعد قليل أو تسجيل الدخول عبر Google أو البريد الإلكتروني.',
 
   'legend.title': 'دليل الخريطة',
   'legend.colourTitle': 'لون الدائرة',

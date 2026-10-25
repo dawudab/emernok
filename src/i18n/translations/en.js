@@ -121,7 +121,7 @@ export default {
   'signIn.finishing': 'Finishing…',
 
   'phone.label': 'Phone number',
-  'phone.placeholder': '+222 12 34 56 78',
+  'phone.placeholder': '36123456',
   'phone.send': 'Send code',
   'phone.sending': 'Sending…',
   'phone.codeLabel': 'Enter the 6-digit code sent to {phone}',
@@ -129,6 +129,16 @@ export default {
   'phone.verifying': 'Verifying…',
   'phone.change': 'Use a different number',
   'phone.keep': 'Your existing reports stay with you when you add a phone number.',
+  'phone.resend': 'Resend code',
+  'phone.resendIn': 'Resend in {seconds}s',
+  'phone.errorInvalidPhone':
+    'Enter a valid 8-digit Mauritanian mobile number starting with 2, 3 or 4.',
+  'phone.errorInvalidCode': 'That code is incorrect. Please check the SMS and try again.',
+  'phone.errorExpired': 'This code has expired. Please request a new one.',
+  'phone.errorTooMany': 'Too many incorrect attempts. Please request a new code.',
+  'phone.errorCooldown': 'Please wait a minute before requesting another code.',
+  'phone.errorSendFailed':
+    'We could not send the SMS right now. Please try again shortly or sign in with Google or email.',
 
   'legend.title': 'Map legend',
   'legend.colourTitle': 'Circle colour',

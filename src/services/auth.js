@@ -1,88 +1,27 @@
 import {
   EmailAuthProvider,
   GoogleAuthProvider,
-  PhoneAuthProvider,
-  RecaptchaVerifier,
   createUserWithEmailAndPassword,
   isSignInWithEmailLink,
   linkWithCredential,
-  linkWithPhoneNumber,
   linkWithPopup,
   reload,
   sendPasswordResetEmail,
   sendSignInLinkToEmail,
   signInWithCredential,
+  signInWithCustomToken,
   signInWithEmailAndPassword,
-  signInWithPhoneNumber,
   signInWithPopup,
   signOut as firebaseSignOut,
 } from 'firebase/auth'
-import { auth } from '../firebaseConfig'
+import { getFunctions, httpsCallable } from 'firebase/functions'
+import { app, auth } from '../firebaseConfig'
 
 // The sign-in link is usually opened in a different tab (or even a different
 // browser), so the address has to outlive the page that requested it.
 const PENDING_EMAIL_KEY = 'emernok:pending-email'
 
-export function createRecaptcha(container = 'recaptcha-container', size = 'invisible') {
-  if (typeof window === 'undefined') return null
-
-  // Clean up any existing window.recaptchaVerifier before initializing a new instance
-  if (window.recaptchaVerifier) {
-    try {
-      window.recaptchaVerifier.clear()
-    } catch {
-      // Ignore cleanup errors from stale verifier instances
-    }
-    window.recaptchaVerifier = null
-  }
-
-  const targetEl =
-    typeof container === 'string'
-      ? document.getElementById(container)
-      : container
-
-  if (!targetEl) return null
-
-  // Ensure the container DOM node has no leftover reCAPTCHA widget markup
-  targetEl.innerHTML = ''
-
-  const verifier = new RecaptchaVerifier(auth, targetEl, {
-    size,
-    callback: () => {
-      // reCAPTCHA solved - will proceed with phone auth
-    },
-    'expired-callback': () => {
-      // Response expired. Ask user to solve reCAPTCHA again.
-    },
-  })
-
-  window.recaptchaVerifier = verifier
-  return verifier
-}
-
-/**
- * Formats a raw phone input into E.164 format (+countryCode...),
- * handling Mauritanian (+222) 8-digit numbers and numbers missing '+'.
- */
-export function formatPhoneNumberE164(phoneNumber) {
-  const cleaned = String(phoneNumber || '')
-    .trim()
-    .replace(/[\s()-]/g, '')
-
-  if (!cleaned) return ''
-
-  if (cleaned.startsWith('+')) {
-    return cleaned
-  }
-  if (cleaned.startsWith('00')) {
-    return `+${cleaned.slice(2)}`
-  }
-  // Standard 8-digit Mauritanian mobile number (starts with 2, 3, or 4)
-  if (/^[234]\d{7}$/.test(cleaned)) {
-    return `+222${cleaned}`
-  }
-  return `+${cleaned}`
-}
+export const functions = app ? getFunctions(app, 'europe-west1') : null
 
 /**
  * Upgrades the current anonymous session so the user keeps their uid (and
@@ -132,50 +71,20 @@ export async function signInWithGoogle() {
 
 // ---- phone / sms -----------------------------------------------------------
 
-export async function startPhoneSignIn(phoneNumber, verifier) {
-  const formattedNumber = formatPhoneNumberE164(phoneNumber)
-  const activeVerifier =
-    verifier ||
-    window.recaptchaVerifier ||
-    createRecaptcha('recaptcha-container', 'invisible')
+// OTPs are sent through the Chinguisoft SMS gateway by Cloud Functions. When
+// the number is new, the server attaches it to the caller's anonymous account,
+// so the custom token signs back into the same uid and guest reports are kept.
 
-  const current = auth.currentUser
-  if (current?.isAnonymous) {
-    try {
-      return await linkWithPhoneNumber(current, formattedNumber, activeVerifier)
-    } catch (error) {
-      if (
-        error?.code === 'auth/credential-already-in-use' ||
-        error?.code === 'auth/account-exists-with-different-credential'
-      ) {
-        const fallbackVerifier =
-          createRecaptcha('recaptcha-container', 'invisible') || activeVerifier
-        return await signInWithPhoneNumber(
-          auth,
-          formattedNumber,
-          fallbackVerifier,
-        )
-      }
-      throw error
-    }
-  }
-
-  return signInWithPhoneNumber(auth, formattedNumber, activeVerifier)
+export async function startPhoneSignIn(phoneNumber, lang) {
+  const sendOtp = httpsCallable(functions, 'sendChinguiOtp')
+  return await sendOtp({ phoneNumber, lang })
 }
 
-export async function confirmPhoneCode(confirmationResult, code) {
-  try {
-    return await confirmationResult.confirm(code)
-  } catch (error) {
-    if (
-      error.code === 'auth/credential-already-in-use' ||
-      error.code === 'auth/account-exists-with-different-credential'
-    ) {
-      const credential = PhoneAuthProvider.credentialFromError(error)
-      if (credential) return await signInWithCredential(auth, credential)
-    }
-    throw error
-  }
+export async function confirmPhoneCode(phoneNumber, code) {
+  const verifyOtp = httpsCallable(functions, 'verifyChinguiOtp')
+  const result = await verifyOtp({ phoneNumber, code })
+  const { customToken } = result.data
+  return await signInWithCustomToken(auth, customToken)
 }
 
 // ---- email link (passwordless) ---------------------------------------------
@@ -280,50 +189,7 @@ export function formatAuthError(error, lang = 'en') {
   const code = error?.code || ''
   const rawMsg = error?.message || String(error)
 
-  if (
-    code === 'auth/error-code:-39' ||
-    code.includes('-39') ||
-    rawMsg.includes('error-code:-39') ||
-    rawMsg.includes('auth/error-code:-39')
-  ) {
-    if (lang === 'ar') {
-      return 'تعذر إرسال رسالة SMS إلى هذا الرقم (رمز الخطأ -39: قيود أمان المشغّل لدى Firebase). مشغّل الشبكة أو المنطقة مقيد حاليًا من إرسال SMS. يُرجى تسجيل الدخول بـ Google، أو إضافة رقم هاتف تجريبي (Test Phone Number) في لوحة Firebase لتسجيل الدخول فورًا دون انتظار SMS.'
-    }
-    if (lang === 'fr') {
-      return 'Échec de l’envoi du SMS (Code d’erreur -39 : restriction opérateur Firebase). Cet opérateur ou cette région est temporairement restreint par le filtre anti-fraude de Firebase. Nous vous recommandons de vous connecter avec Google, ou d’ajouter un numéro de test dans la console Firebase.'
-    }
-    return 'SMS delivery failed (Firebase Error auth/error-code:-39). Your mobile carrier or region is restricted by Firebase’s automated SMS anti-abuse system. Please sign in with Google above, or add your number as a Test Phone Number in Firebase Console to sign in with an instant test code.'
-  }
-
   switch (code) {
-    case 'auth/invalid-phone-number':
-      if (lang === 'ar') {
-        return 'رقم الهاتف غير صالح. يرجى التأكد من كتابة الرقم بالصيغة الدولية الصحيحة (مثال: +22236123456 لموريتانيا).'
-      }
-      if (lang === 'fr') {
-        return 'Numéro de téléphone invalide. Veuillez vérifier le format international (ex : +22236123456 pour la Mauritanie).'
-      }
-      return 'Invalid phone number. Please enter a valid number with country code (e.g. +22236123456 for Mauritania).'
-
-    case 'auth/quota-exceeded':
-      if (lang === 'ar') {
-        return 'تم تجاوز الحد اليومي لرسائل SMS. يرجى المحاولة لاحقًا أو تسجيل الدخول عبر Google أو البريد الإلكتروني.'
-      }
-      if (lang === 'fr') {
-        return 'Quota de SMS dépassé temporairement. Veuillez réessayer plus tard ou vous connecter avec Google ou par e-mail.'
-      }
-      return 'SMS quota exceeded temporarily. Please try again later or sign in with Google or Email.'
-
-    case 'auth/captcha-check-failed':
-    case 'auth/invalid-app-credential':
-      if (lang === 'ar') {
-        return 'فشل التحقق الأمني (reCAPTCHA). يرجى المحاولة مرة أخرى أو استخدام تسجيل الدخول عبر Google أو البريد الإلكتروني.'
-      }
-      if (lang === 'fr') {
-        return 'La vérification reCAPTCHA a échoué. Veuillez réessayer ou utiliser Google / e-mail.'
-      }
-      return 'reCAPTCHA verification failed. Please try again or sign in with Google or Email.'
-
     case 'auth/operation-not-allowed':
       if (lang === 'ar') {
         return 'طريقة تسجيل الدخول برابط البريد غير مفعلة في لوحة تحكم Firebase. لتفعيلها: ادخل إلى Authentication > Sign-in method > Email/Password وفعّل خيار (Email link). يمكنك أيضًا تسجيل الدخول بـ Google أو الهاتف.'
